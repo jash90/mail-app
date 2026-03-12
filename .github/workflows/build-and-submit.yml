@@ -1,0 +1,54 @@
+name: Build & Submit to TestFlight
+
+on:
+  push:
+    branches: [master]
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-submit:
+    name: Build iOS & Submit to TestFlight
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Bump version
+        run: |
+          node -e "
+            const fs = require('fs');
+            const cfg = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+            const parts = cfg.expo.version.split('.').map(Number);
+            parts[2]++;
+            cfg.expo.version = parts.join('.');
+            fs.writeFileSync('app.json', JSON.stringify(cfg, null, 2) + '\n');
+            console.log('Bumped to', cfg.expo.version);
+          "
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add app.json
+          git commit -m "chore: bump version to $(node -p "require('./app.json').expo.version")"
+          git push
+
+      - name: Build and submit to TestFlight
+        run: eas build --platform ios --profile production --auto-submit --non-interactive
