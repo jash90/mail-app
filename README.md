@@ -1,50 +1,76 @@
-# Welcome to your Expo app 👋
+# Mail App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A mobile email client built with Expo and React Native that connects to Gmail via the Google API.
 
-## Get started
+## Tech Stack
+
+- **Framework:** Expo SDK 54, React Native 0.81, React 19
+- **Routing:** Expo Router (file-based, typed routes)
+- **Styling:** Tailwind CSS via UniWind
+- **State:** Zustand (auth), React Query (server data, MMKV persistence)
+- **Auth:** Google Sign-In with OAuth 2.0
+- **AI:** Z.AI for email generation
+
+## Features
+
+- Google OAuth login
+- Gmail inbox with thread view
+- Compose and send emails
+- AI-assisted email drafting
+- Label management
+- Contact autocomplete
+- Offline-ready with MMKV-backed query cache
+
+## Getting Started
 
 1. Install dependencies
 
    ```bash
-   npm install
+   bun install
    ```
 
-2. Start the app
+2. Start the dev server
 
    ```bash
-   npx expo start
+   bun start
    ```
 
-In the output, you'll find options to open the app in a
+3. Run on a device or simulator
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+   ```bash
+   bun run ios
+   bun run android
+   ```
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+> **Note:** Google Sign-In requires a development build (`expo run:ios` / `expo run:android`). It does not work in Expo Go.
 
-## Get a fresh project
+## Project Structure
 
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+app/                  # Screens (Expo Router file-based routing)
+  _layout.tsx         # Root layout with auth guard
+  index.tsx           # Splash / loading
+  login.tsx           # Google sign-in
+  list.tsx            # Inbox
+  compose.tsx         # Compose email
+  settings.tsx        # Settings
+  thread/[id].tsx     # Thread detail
+components/           # Shared UI components
+config/               # App constants
+features/
+  ai/                 # AI email generation (Z.AI)
+  auth/               # Google OAuth service
+  gmail/              # Gmail API: messages, threads, labels, contacts, sync
+store/                # Zustand auth store
+types/                # Shared TypeScript types
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Scripts
 
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+| Command | Description |
+|---------|-------------|
+| `bun start` | Start Expo dev server |
+| `bun run ios` | Run on iOS |
+| `bun run android` | Run on Android |
+| `bun run lint` | Lint with ESLint |
+| `bun run format` | Format with Prettier |
