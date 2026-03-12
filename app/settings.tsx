@@ -32,7 +32,6 @@ export default function SettingsScreen() {
         clearUser();
         clearTokenCache();
         resetTokens();
-        router.dismissAll();
         router.replace('/');
     };
 

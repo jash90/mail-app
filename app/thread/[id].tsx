@@ -1,21 +1,21 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import {
-  Text,
-  View,
-  TouchableOpacity,
-  ScrollView,
-  TextInput,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { withUniwind } from 'uniwind';
-import Icon from '@expo/vector-icons/SimpleLineIcons';
-import { useState, useCallback, useEffect } from 'react';
+import { generateReply } from '@/features/ai/api';
 import { useMarkAsRead, useSendReply, useThread, useThreadMessages } from '@/features/gmail';
 import { useAuthStore } from '@/store/authStore';
+import Icon from '@expo/vector-icons/SimpleLineIcons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import WebView, { type WebViewMessageEvent } from 'react-native-webview';
-import { generateReply } from '@/features/ai/api';
+import { withUniwind } from 'uniwind';
 
 const StyledSafeAreaView = withUniwind(SafeAreaView);
 
@@ -282,7 +282,7 @@ export default function ThreadScreen() {
         })}
       </ScrollView>
 
-      <View className="absolute right-0 bottom-0 left-0 flex-row items-center justify-between bg-zinc-900 p-4">
+      <View className="absolute right-0 bottom-0 left-0 flex-row flex-1 justify-between bg-zinc-900 p-4">
         <TextInput
           className="mb-3 flex-1 rounded-lg p-3 text-base text-white"
           placeholder="Write your message"
@@ -290,6 +290,7 @@ export default function ThreadScreen() {
           value={message}
           onChangeText={setMessage}
           multiline
+          numberOfLines={7}
           textAlignVertical="top"
           editable={!replying}
         />

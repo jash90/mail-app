@@ -3,14 +3,14 @@ global.Buffer = global.Buffer || Buffer;
 
 import '../global.css';
 
+import { getStoredTokens } from '@/features/auth/oauthService';
+import { createMMKVPersister } from '@/features/gmail/persister';
+import { useAuthStore } from '@/store/authStore';
 import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { createMMKVPersister } from '@/features/gmail/persister';
 import { Stack, useRouter } from 'expo-router';
-import 'react-native-reanimated';
-import { useAuthStore } from '@/store/authStore';
-import { getStoredTokens } from '@/features/auth/oauthService';
 import { useEffect } from 'react';
+import 'react-native-reanimated';
 
 const FIVE_MINUTES = 5 * 60 * 1000;
 
@@ -32,14 +32,14 @@ export default function RootLayout() {
   useEffect(() => {
     (async () => {
       const tokens = await getStoredTokens('gmail');
-      if (!tokens) {
-        router.replace("/login");
-      } else if (tokens.user?.id) {
-        setUser(tokens.user);
-        router.replace("/list");
+      if (tokens?.user?.id) {
+        setUser(tokens?.user);
+        setTimeout(() => router.replace('/list'), 200);
+      } else {
+        setTimeout(() => router.replace('/login'), 200);
       }
     })();
-  }, []);
+  });
 
 
   return (
