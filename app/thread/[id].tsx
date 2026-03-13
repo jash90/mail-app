@@ -1,9 +1,11 @@
 import { generateReply } from '@/features/ai/api';
 import { useMarkAsRead, useSendReply, useThread, useThreadMessages } from '@/features/gmail';
+import { parseCompositeId } from '@/lib/parseCompositeId';
 import { useAuthStore } from '@/store/authStore';
+import { ThreadMessageItem } from '@/components/ThreadMessageItem';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,98 +16,28 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import WebView, { type WebViewMessageEvent } from 'react-native-webview';
 import { withUniwind } from 'uniwind';
 
 const StyledSafeAreaView = withUniwind(SafeAreaView);
-
-function formatRelativeDate(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString();
-}
-
-const heightScript = `
-  (function() {
-    function postHeight() {
-      var h = document.body.scrollHeight;
-      window.ReactNativeWebView.postMessage(JSON.stringify({ height: h }));
-    }
-    postHeight();
-    document.querySelectorAll('img').forEach(function(img) {
-      img.addEventListener('load', postHeight);
-      img.addEventListener('error', postHeight);
-    });
-    if (typeof ResizeObserver !== 'undefined') {
-      new ResizeObserver(postHeight).observe(document.body);
-    } else {
-      setTimeout(postHeight, 500);
-      setTimeout(postHeight, 1500);
-    }
-  })();
-  true;
-`;
-
-function wrapHtml(html: string) {
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; color: #ffffff !important; background-color: #000000 !important; }
-        html, body {
-          background-color: #000000 !important;
-          font-family: -apple-system, system-ui, sans-serif;
-          font-size: 15px;
-          line-height: 1.5;
-          word-wrap: break-word;
-          overflow-wrap: break-word;
-        }
-        a { color: #818cf8 !important; }
-        img { max-width: 100%; height: auto; background-color: transparent !important; }
-        pre { white-space: pre-wrap; }
-        blockquote { border-left: 3px solid #4b5563; padding-left: 12px; margin: 8px 0; color: #9ca3af !important; }
-      </style>
-    </head>
-    <body>${html}</body>
-    </html>
-  `;
-}
 
 export default function ThreadScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [message, setMessage] = useState('');
   const [generatingAI, setGeneratingAI] = useState(false);
-  const [webViewHeights, setWebViewHeights] = useState<Record<string, number>>(
-    {},
-  );
+  const [webViewHeights, setWebViewHeights] = useState<Record<string, number>>({});
   const user = useAuthStore((s) => s.user);
 
-  const onWebViewMessage = useCallback(
-    (msgId: string) => (event: WebViewMessageEvent) => {
-      try {
-        const { height } = JSON.parse(event.nativeEvent.data);
-        setWebViewHeights((prev) => ({ ...prev, [msgId]: height }));
-      } catch { }
-    },
-    [],
+  const { accountId, providerId: providerThreadId } = useMemo(
+    () => parseCompositeId(id),
+    [id],
   );
 
-  // id is "accountId_threadId" — split on first underscore
-  const separatorIndex = id?.indexOf('_') ?? -1;
-  const accountId = separatorIndex > 0 ? id!.slice(0, separatorIndex) : '';
-  const providerThreadId = separatorIndex > 0 ? id!.slice(separatorIndex + 1) : '';
+  const handleHeightChange = useCallback((msgId: string, height: number) => {
+    setWebViewHeights((prev) => ({ ...prev, [msgId]: height }));
+  }, []);
+
+  const myEmail = user?.email?.toLowerCase();
 
   const {
     data: thread,
@@ -119,7 +51,6 @@ export default function ThreadScreen() {
     isError: messagesError,
   } = useThreadMessages(accountId, providerThreadId);
 
-
   const isLoading = threadLoading || messagesLoading;
   const isError = threadError || messagesError;
 
@@ -132,7 +63,6 @@ export default function ThreadScreen() {
   const handleReply = () => {
     if (!messages?.length || !message.trim()) return;
     const lastMsg = messages[messages.length - 1];
-    const myEmail = user?.email?.toLowerCase();
 
     const allRecipients = [lastMsg.from, ...lastMsg.to, ...(lastMsg.cc ?? [])];
     const seen = new Set<string>();
@@ -168,9 +98,7 @@ export default function ThreadScreen() {
     setGeneratingAI(true);
     try {
       const lastMsg = messages[messages.length - 1];
-
-      const { email, name } = lastMsg.from
-
+      const { email, name } = lastMsg.from;
       const originalText = lastMsg.body.text || lastMsg.snippet;
       const result = await generateReply(originalText, message, thread?.subject, { email, name: name ?? "" }, user);
       setMessage(result);
@@ -181,15 +109,13 @@ export default function ThreadScreen() {
     }
   };
 
-  const { mutateAsync } = useMarkAsRead(accountId);
-
-
+  const { mutateAsync: markAsRead } = useMarkAsRead(accountId);
 
   useEffect(() => {
     if (providerThreadId) {
-      mutateAsync(providerThreadId);
+      markAsRead(providerThreadId).catch(() => {});
     }
-  }, [providerThreadId]);
+  }, [providerThreadId, markAsRead]);
 
   if (isLoading) {
     return (
@@ -230,56 +156,20 @@ export default function ThreadScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Thread Messages */}
       <ScrollView
         className="flex-1 py-3 w-full"
         contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
       >
-        {messages?.map((msg) => {
-          const isMe =
-            !!user?.email &&
-            msg.from.email.toLowerCase() === user.email.toLowerCase();
-          const htmlContent = msg.body.html
-            ? msg.body.html
-            : `<pre>${msg.body.text ?? ''}</pre>`;
-
-          return (
-            <View
-              key={msg.id}
-              className={`mb-5 ${isMe ? 'items-end' : 'items-start'
-                } flex w-full max-w-full p-4`}
-            >
-              <View
-                className={`rounded shadow-md w-full`}
-                style={{
-                  alignSelf: isMe ? 'flex-end' : 'flex-start',
-                }}
-              >
-                <WebView
-                  source={{ html: wrapHtml(htmlContent) }}
-                  originWhitelist={['*']}
-                  scrollEnabled={false}
-                  injectedJavaScript={heightScript}
-                  onMessage={onWebViewMessage(msg.id)}
-                  style={{
-                    height: webViewHeights[msg.id] ?? 100,
-                    opacity: webViewHeights[msg.id] ? 1 : 0.5,
-                    backgroundColor: 'transparent',
-                    width: '100%',
-                  }}
-                />
-
-              </View>
-              <Text
-                className={`mt-2 text-right text-xs ${isMe ? 'text-indigo-200' : 'text-gray-400'
-                  }`}
-              >
-                {formatRelativeDate(msg.created_at)}
-              </Text>
-            </View>
-          );
-        })}
+        {messages?.map((msg) => (
+          <ThreadMessageItem
+            key={msg.id}
+            msg={msg}
+            isMe={!!myEmail && msg.from.email.toLowerCase() === myEmail}
+            height={webViewHeights[msg.id]}
+            onHeightChange={handleHeightChange}
+          />
+        ))}
       </ScrollView>
 
       <View className="absolute right-0 bottom-0 left-0 flex-row flex-1 justify-between bg-zinc-900 p-4">
