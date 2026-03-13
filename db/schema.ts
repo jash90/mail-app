@@ -131,6 +131,12 @@ export const labels = sqliteTable('labels', {
   unreadCount: integer('unread_count'),
 });
 
+export const summaryCache = sqliteTable('summary_cache', {
+  key: text('key').primaryKey(),
+  summary: text('summary').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
 export const syncState = sqliteTable('sync_state', {
   accountId: text('account_id').primaryKey(),
   historyId: text('history_id'),

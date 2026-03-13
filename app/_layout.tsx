@@ -3,6 +3,7 @@ global.Buffer = global.Buffer || Buffer;
 
 import '../global.css';
 
+import { prefetchSummaries } from '@/features/ai/api';
 import { getStoredTokens } from '@/features/auth/oauthService';
 import { useAuthStore } from '@/store/authStore';
 import { db } from '@/db/client';
@@ -38,6 +39,7 @@ export default function RootLayout() {
       if (tokens?.user?.id) {
         setUser(tokens?.user);
         setTimeout(() => router.replace('/(tabs)/list'), 200);
+        prefetchSummaries(tokens.user.id).catch(() => {});
       } else {
         setTimeout(() => router.replace('/login'), 200);
       }
@@ -69,6 +71,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="compose" options={{ headerShown: false }} />
           <Stack.Screen name="thread/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="summary" options={{ headerShown: false }} />
         </Stack.Protected>
       </Stack>
     </QueryClientProvider>

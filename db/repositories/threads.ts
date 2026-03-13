@@ -123,22 +123,7 @@ export function getThreadsPaginated(
     }
   })();
 
-  // When filtering by labels, use DISTINCT + join; otherwise plain select
-  const threadColumns = {
-    id: threads.id,
-    accountId: threads.accountId,
-    providerThreadId: threads.providerThreadId,
-    subject: threads.subject,
-    snippet: threads.snippet,
-    lastMessageAt: threads.lastMessageAt,
-    messageCount: threads.messageCount,
-    isRead: threads.isRead,
-    isStarred: threads.isStarred,
-    isArchived: threads.isArchived,
-    isTrashed: threads.isTrashed,
-    createdAt: threads.createdAt,
-    updatedAt: threads.updatedAt,
-  };
+  const threadColumns = getThreadColumns();
 
   const hasLabels = labelIds && labelIds.length > 0;
   const threadRows = hasLabels
@@ -154,6 +139,46 @@ export function getThreadsPaginated(
 
   // Hydrate participants and labels for each thread
   return threadRows.map((row) => hydrateThread(row));
+}
+
+/** Get unread threads for an account, sorted by most recent. */
+export function getUnreadThreads(accountId: string, limit = 20): EmailThread[] {
+  const threadColumns = getThreadColumns();
+
+  const threadRows = db
+    .selectDistinct(threadColumns)
+    .from(threads)
+    .innerJoin(threadLabels, eq(threads.id, threadLabels.threadId))
+    .where(
+      and(
+        eq(threads.accountId, accountId),
+        eq(threads.isRead, false),
+        eq(threadLabels.labelId, 'INBOX'),
+      ),
+    )
+    .orderBy(desc(threads.lastMessageAt))
+    .limit(limit)
+    .all();
+
+  return threadRows.map((row) => hydrateThread(row));
+}
+
+function getThreadColumns() {
+  return {
+    id: threads.id,
+    accountId: threads.accountId,
+    providerThreadId: threads.providerThreadId,
+    subject: threads.subject,
+    snippet: threads.snippet,
+    lastMessageAt: threads.lastMessageAt,
+    messageCount: threads.messageCount,
+    isRead: threads.isRead,
+    isStarred: threads.isStarred,
+    isArchived: threads.isArchived,
+    isTrashed: threads.isTrashed,
+    createdAt: threads.createdAt,
+    updatedAt: threads.updatedAt,
+  };
 }
 
 /** Get a single thread by ID with participants and labels. */

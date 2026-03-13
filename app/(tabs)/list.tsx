@@ -64,9 +64,16 @@ export default function ListScreen() {
 
     return (
         <StyledSafeAreaView className="flex-1 bg-black p-4" edges={['top']}>
-            <Text className="self-start p-2 text-center text-4xl font-bold text-white">
-                AI Mail
-            </Text>
+            <View className="flex-row items-center justify-between p-2">
+                <Text className="text-4xl font-bold text-white">AI Mail</Text>
+                <TouchableOpacity
+                    className="flex-row items-center"
+                    onPress={() => router.push('/summary')}
+                >
+                    <Icon name="magic-wand" size={18} color="#818cf8" />
+                    <Text className="ml-2 font-semibold text-indigo-400">Summary</Text>
+                </TouchableOpacity>
+            </View>
 
             {!isLoading ? <FlatList
                 data={threads ?? []}

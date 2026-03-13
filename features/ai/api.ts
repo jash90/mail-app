@@ -1,4 +1,8 @@
+import { db } from '@/db/client';
+import { getUnreadThreads } from '@/db/repositories/threads';
+import { summaryCache } from '@/db/schema';
 import { GoogleUser } from "@/store/authStore";
+import { and, eq, gt } from 'drizzle-orm';
 
 const ZAI_API_KEY = process.env.EXPO_PUBLIC_ZAI_API_KEY ?? '';
 const ZAI_BASE_URL = 'https://api.z.ai/api/coding/paas/v4';
@@ -29,7 +33,7 @@ export async function chatCompletion(messages: ChatMessage[]): Promise<string> {
         model: 'glm-5',
         messages,
         temperature: 0.7,
-        max_tokens: 1024,
+        max_tokens: 16384,
       }),
       signal: controller.signal,
     });
@@ -70,6 +74,66 @@ function formatContext(ctx: EmailContext): string {
     lines.push(`Sender: ${ctx.user.givenName ?? ''} ${ctx.user.familyName ?? ''}`);
   }
   return lines.join('\n');
+}
+
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+export function getSummaryCache(key: string): string | null {
+  const cutoff = new Date(Date.now() - ONE_DAY_MS).toISOString();
+  const row = db
+    .select({ summary: summaryCache.summary })
+    .from(summaryCache)
+    .where(and(eq(summaryCache.key, key), gt(summaryCache.createdAt, cutoff)))
+    .get();
+  return row?.summary ?? null;
+}
+
+function setSummaryCache(key: string, summary: string): void {
+  db.insert(summaryCache)
+    .values({ key, summary, createdAt: new Date().toISOString() })
+    .onConflictDoUpdate({
+      target: summaryCache.key,
+      set: { summary, createdAt: new Date().toISOString() },
+    })
+    .run();
+}
+
+export async function summarizeEmail(threadId: string, subject: string, snippet: string): Promise<string> {
+  const cached = getSummaryCache(threadId);
+  if (cached) return cached;
+
+  const userMsg = [
+    subject ? `Subject: ${subject}` : '',
+    snippet ? `Content: ${snippet}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const summary = await chatCompletion([
+    {
+      role: 'system',
+      content:
+        'Summarize the email in 5 sentences. Match the language of the email content. Be concise and informative.',
+    },
+    { role: 'user', content: userMsg },
+  ]);
+
+  setSummaryCache(threadId, summary);
+  return summary;
+}
+
+export async function prefetchSummaries(accountId: string): Promise<void> {
+  const threads = getUnreadThreads(accountId, 20);
+
+  for (const t of threads) {
+    const cached = getSummaryCache(t.id);
+    if (cached) continue;
+    try {
+      await summarizeEmail(t.id, t.subject, t.snippet);
+    } catch {
+      // silently skip failed summaries during prefetch
+    }
+  }
 }
 
 export async function generateEmail(
