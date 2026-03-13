@@ -1,10 +1,17 @@
 import { GMAIL_API } from '@/config/constants';
-import { getStoredTokens, isTokenExpired, refreshGmailTokens } from '@/features/auth/oauthService';
+import { getStoredTokens, isTokenExpired, refreshGmailTokens, resetTokens } from '@/features/auth/oauthService';
+import { useAuthStore } from '@/store/authStore';
 
 let cachedToken: { value: string; expiresAt: number } | null = null;
 
 export const clearTokenCache = () => {
   cachedToken = null;
+};
+
+const handleAuthFailure = () => {
+  cachedToken = null;
+  resetTokens();
+  useAuthStore.getState().clearUser();
 };
 
 export const getAccessToken = async (
@@ -22,6 +29,7 @@ export const getAccessToken = async (
   if (isTokenExpired(tokens)) {
     const refreshed = await refreshGmailTokens(tokens.refresh_token);
     if (!refreshed) {
+      handleAuthFailure();
       throw new Error(
         'Failed to refresh Gmail tokens. Please re-authenticate.',
       );
@@ -40,6 +48,7 @@ export const apiRequestRaw = async (
 ): Promise<Response> => {
   const token = await getAccessToken('gmail');
 
+
   const response = await fetch(url, {
     ...options,
     headers: {
@@ -47,6 +56,11 @@ export const apiRequestRaw = async (
       ...options.headers,
     },
   });
+
+  if (response.status === 401) {
+    handleAuthFailure();
+    throw new Error('Gmail session expired. Please re-authenticate.');
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));

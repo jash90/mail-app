@@ -1,13 +1,12 @@
 import {
   useQuery,
-  useInfiniteQuery,
   useMutation,
   useQueryClient,
   type QueryKey,
 } from '@tanstack/react-query';
 import type { ComposeEmailData } from '@/types';
 import { gmailKeys } from './queryKeys';
-import { listThreads, getThread } from './threads';
+import { getThread } from './threads';
 import { getThreadMessages } from './messages';
 import { getLabels } from './labels';
 import { sendEmail, sendReply } from './send';
@@ -20,8 +19,13 @@ import {
   trashThread,
   deleteThread,
 } from './modify';
+import { performIncrementalSync, performFullSync } from './sync';
+import { getThreadsPaginated } from '@/db/repositories/threads';
+import { getSyncState, upsertSyncState } from '@/db/repositories/syncState';
+import { getContactImportanceMap } from '@/db/repositories/stats';
 
-const FIVE_MINUTES = 5 * 60 * 1000;
+const THIRTY_MINUTES = 30 * 60 * 1000;
+const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
 
 const useGmailMutation = <TVariables>(
   accountId: string,
@@ -40,20 +44,47 @@ const useGmailMutation = <TVariables>(
   });
 };
 
-export const useThreads = (accountId: string, labelIds: string[] = ['INBOX']) =>
-  useInfiniteQuery({
-    queryKey: gmailKeys.threads(accountId, labelIds),
-    queryFn: ({ pageParam }) =>
-      listThreads(accountId, labelIds, {
-        cursor: pageParam,
-        limit: 50,
-      }),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.nextPageToken,
+/** Read threads from SQLite with SQL-based sorting. */
+export const useThreads = (
+  accountId: string,
+  labelIds: string[] = ['INBOX'],
+) =>
+  useQuery({
+    queryKey: gmailKeys.threads(accountId, labelIds, 'recent'),
+    queryFn: () =>
+      getThreadsPaginated(accountId, { labelIds, sortMode: 'recent', limit: 200 }),
     enabled: !!accountId,
-    staleTime: FIVE_MINUTES,
-    gcTime: FIVE_MINUTES,
+    staleTime: TWENTY_FOUR_HOURS,
+    gcTime: TWENTY_FOUR_HOURS,
   });
+
+/** Contact importance tiers (1-5) based on email exchange history. */
+export const useContactImportance = (accountId: string, userEmail: string) =>
+  useQuery({
+    queryKey: ['contact-importance', accountId],
+    queryFn: () => getContactImportanceMap(accountId, userEmail),
+    enabled: !!accountId && !!userEmail,
+    staleTime: THIRTY_MINUTES,
+  });
+
+/** Trigger a sync from Gmail API — data lands in SQLite. */
+export const useSync = (accountId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const state = getSyncState(accountId);
+      const result = state?.history_id
+        ? await performIncrementalSync(accountId, state)
+        : await performFullSync(accountId);
+      upsertSyncState(accountId, result.new_sync_state);
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: gmailKeys.threads(accountId) });
+      queryClient.invalidateQueries({ queryKey: ['contact-importance', accountId] });
+    },
+  });
+};
 
 export const useThread = (accountId: string, threadId: string) =>
   useQuery({
@@ -127,5 +158,5 @@ export const useSearchContacts = (query: string) =>
     queryKey: gmailKeys.contacts(query),
     queryFn: () => searchContacts(query),
     enabled: query.length >= 2,
-    staleTime: FIVE_MINUTES,
+    staleTime: TWENTY_FOUR_HOURS,
   });

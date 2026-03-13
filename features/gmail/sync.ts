@@ -1,7 +1,7 @@
 import type { SyncState, SyncResult } from '@/types';
 import type { GmailHistoryEvent } from './types';
 import { gmailRequest } from './api';
-import { listThreads } from './threads';
+import { listThreads, batchGetThreads } from './threads';
 
 const handleSyncError = (
   result: SyncResult,
@@ -43,10 +43,21 @@ export const performIncrementalSync = async (
     result.new_sync_state.last_synced_at = new Date().toISOString();
 
     if (response.history) {
+      const changedThreadIds = new Set<string>();
+
       for (const event of response.history) {
-        if (event.messagesAdded) {
-          result.synced_messages += event.messagesAdded.length;
-        }
+        event.messagesAdded?.forEach((m) => {
+          changedThreadIds.add(m.message.threadId);
+          result.synced_messages++;
+        });
+        event.messagesDeleted?.forEach((m) => changedThreadIds.add(m.message.threadId));
+        event.labelsAdded?.forEach((m) => changedThreadIds.add(m.message.threadId));
+        event.labelsRemoved?.forEach((m) => changedThreadIds.add(m.message.threadId));
+      }
+
+      if (changedThreadIds.size > 0) {
+        const threads = await batchGetThreads(accountId, [...changedThreadIds]);
+        result.synced_threads = threads.length;
       }
     }
 

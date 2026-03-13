@@ -2,14 +2,15 @@ import type { EmailThread, CursorPagination } from '@/types';
 import type { GmailThread } from './types';
 import { GMAIL_API } from '@/config/constants';
 import { apiRequestRaw, gmailRequest } from './api';
-import { extractParticipants, cleanHeaderText, cleanSnippet } from './helpers';
+import { extractParticipants, cleanHeaderText, cleanSnippet, parseMultipartResponseWithStatus } from './helpers';
+import { upsertThreads, countExistingThreads, filterNewProviderThreadIds, filterStaleProviderThreadIds, deleteThread as deleteThreadDb } from '@/db/repositories/threads';
 
 const THREAD_METADATA_PARAMS = 'format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Date';
 
 /**
  * Maps a raw Gmail thread to our normalized EmailThread type.
  */
-const mapGmailThreadToEmailThread = (
+export const mapGmailThreadToEmailThread = (
   accountId: string,
   thread: GmailThread,
 ): EmailThread | null => {
@@ -47,44 +48,27 @@ const mapGmailThreadToEmailThread = (
   };
 };
 
-/**
- * Parse a multipart/mixed batch response into individual JSON bodies.
- */
-const parseMultipartResponse = (responseText: string, boundary: string): unknown[] => {
-  const parts = responseText.split(`--${boundary}`);
-  const results: unknown[] = [];
-
-  for (const part of parts) {
-    if (part.trim() === '' || part.trim() === '--') continue;
-
-    // Each part has HTTP headers, then a blank line, then the sub-response
-    // The sub-response itself has HTTP status line, headers, blank line, JSON body
-    const jsonMatch = part.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        results.push(JSON.parse(jsonMatch[0]));
-      } catch {
-        // Skip malformed parts
-      }
-    }
-  }
-
-  return results;
-};
+// parseMultipartResponse moved to helpers/batch.ts
 
 /**
  * Fetch multiple threads in a single batch HTTP request.
  * Gmail Batch API supports up to 100 requests per batch.
  */
-const batchGetThreads = async (
+export const batchGetThreads = async (
   accountId: string,
   threadIds: string[],
 ): Promise<EmailThread[]> => {
   if (threadIds.length === 0) return [];
 
+  // Skip threads updated within last 24h
+  const staleIds = filterStaleProviderThreadIds(accountId, threadIds);
+  if (staleIds.length === 0) {
+     return [];
+  }
+
   const boundary = `batch_${Date.now()}`;
 
-  const body = threadIds
+  const body = staleIds
     .map(
       (id) =>
         `--${boundary}\r\nContent-Type: application/http\r\nContent-ID: <${id}>\r\n\r\n` +
@@ -105,11 +89,29 @@ const batchGetThreads = async (
     .get('content-type')
     ?.match(/boundary=(.+)/)?.[1] ?? boundary;
 
-  const threadData = parseMultipartResponse(responseText, responseBoundary) as GmailThread[];
+  const allParts = parseMultipartResponseWithStatus(responseText, responseBoundary);
 
-  return threadData
+  const successThreads: GmailThread[] = [];
+  for (const part of allParts) {
+    if (part.status >= 200 && part.status < 300 && part.body) {
+      successThreads.push(part.body as GmailThread);
+    } else if (part.contentId) {
+      console.warn(
+        `[Gmail] Failed to fetch thread ${part.contentId}: HTTP ${part.status} — removing from local DB`,
+        part.body,
+      );
+      try { deleteThreadDb(`${accountId}_${part.contentId}`); } catch { /* non-blocking */ }
+    }
+  }
+
+  const mapped = successThreads
     .map((thread) => mapGmailThreadToEmailThread(accountId, thread))
     .filter((t): t is EmailThread => t !== null);
+
+  // Persist to SQLite
+  try { upsertThreads(mapped); } catch { /* non-blocking */ }
+
+  return mapped;
 };
 
 export const listThreads = async (
@@ -132,8 +134,15 @@ export const listThreads = async (
     return { threads: [], nextPageToken: undefined };
   }
 
-  const threadIds = response.threads.map((t) => t.id);
-  const threads = await batchGetThreads(accountId, threadIds);
+  const allThreadIds = response.threads.map((t) => t.id);
+
+  // Fast path: single COUNT(*) — if all threads exist locally, skip batch entirely
+  if (countExistingThreads(accountId, allThreadIds) === allThreadIds.length) {
+    return { threads: [], nextPageToken: response.nextPageToken };
+  }
+
+  const newThreadIds = filterNewProviderThreadIds(accountId, allThreadIds);
+  const threads = await batchGetThreads(accountId, newThreadIds);
 
   return {
     threads,
@@ -149,7 +158,11 @@ export const getThread = async (
     const thread = await gmailRequest<GmailThread>(
       `/threads/${threadId}?${THREAD_METADATA_PARAMS}`,
     );
-    return mapGmailThreadToEmailThread(accountId, thread);
+    const mapped = mapGmailThreadToEmailThread(accountId, thread);
+    if (mapped) {
+      try { upsertThreads([mapped]); } catch { /* non-blocking */ }
+    }
+    return mapped;
   } catch (error) {
     console.error(`Failed to get thread ${threadId}`, { error });
     return null;

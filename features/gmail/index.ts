@@ -1,7 +1,6 @@
 export { getAccessToken, gmailRequest, apiRequest, apiRequestRaw, clearTokenCache } from './api';
-export { createMMKVPersister } from './persister';
 export { getLabels, getLabelById } from './labels';
-export { listThreads, getThread } from './threads';
+export { listThreads, getThread, mapGmailThreadToEmailThread } from './threads';
 export { getMessage, getThreadMessages, parseGmailMessage } from './messages';
 export { sendEmail, sendReply } from './send';
 export {
@@ -16,6 +15,8 @@ export {
 export { gmailKeys } from './queryKeys';
 export {
   useThreads,
+  useContactImportance,
+  useSync,
   useThread,
   useThreadMessages,
   useLabels,
@@ -28,6 +29,7 @@ export {
   useTrashThread,
   useDeleteThread,
 } from './hooks';
+export { parseMultipartResponse } from './helpers/batch';
 export type {
   GmailThread,
   GmailMessage,

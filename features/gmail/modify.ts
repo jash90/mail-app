@@ -1,4 +1,5 @@
 import { gmailRequest } from './api';
+import { updateThreadFlags } from '@/db/repositories/threads';
 
 const safeModify = async (
   label: string,
@@ -13,19 +14,25 @@ const safeModify = async (
   }
 };
 
-export const markAsRead = (threadId: string) =>
-  safeModify(`Failed to mark thread ${threadId} as read`, () =>
+export const markAsRead = async (threadId: string) => {
+  const ok = await safeModify(`Failed to mark thread ${threadId} as read`, () =>
     gmailRequest(`/threads/${threadId}/modify`, {
       method: 'POST',
       body: JSON.stringify({ removeLabelIds: ['UNREAD'] }),
     }));
+  if (ok) try { updateThreadFlags(threadId, { is_read: true }); } catch { /* */ }
+  return ok;
+};
 
-export const markAsUnread = (threadId: string) =>
-  safeModify(`Failed to mark thread ${threadId} as unread`, () =>
+export const markAsUnread = async (threadId: string) => {
+  const ok = await safeModify(`Failed to mark thread ${threadId} as unread`, () =>
     gmailRequest(`/threads/${threadId}/modify`, {
       method: 'POST',
       body: JSON.stringify({ addLabelIds: ['UNREAD'] }),
     }));
+  if (ok) try { updateThreadFlags(threadId, { is_read: false }); } catch { /* */ }
+  return ok;
+};
 
 export const toggleStar = (messageId: string, starred: boolean) =>
   safeModify(`Failed to toggle star for message ${messageId}`, () =>
@@ -38,16 +45,22 @@ export const toggleStar = (messageId: string, starred: boolean) =>
       ),
     }));
 
-export const archiveThread = (threadId: string) =>
-  safeModify(`Failed to archive thread ${threadId}`, () =>
+export const archiveThread = async (threadId: string) => {
+  const ok = await safeModify(`Failed to archive thread ${threadId}`, () =>
     gmailRequest(`/threads/${threadId}/modify`, {
       method: 'POST',
       body: JSON.stringify({ removeLabelIds: ['INBOX'] }),
     }));
+  if (ok) try { updateThreadFlags(threadId, { is_archived: true }); } catch { /* */ }
+  return ok;
+};
 
-export const trashThread = (threadId: string) =>
-  safeModify(`Failed to trash thread ${threadId}`, () =>
+export const trashThread = async (threadId: string) => {
+  const ok = await safeModify(`Failed to trash thread ${threadId}`, () =>
     gmailRequest(`/threads/${threadId}/trash`, { method: 'POST' }));
+  if (ok) try { updateThreadFlags(threadId, { is_trashed: true }); } catch { /* */ }
+  return ok;
+};
 
 export const untrashThread = (threadId: string) =>
   safeModify(`Failed to untrash thread ${threadId}`, () =>

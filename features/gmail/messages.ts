@@ -10,6 +10,7 @@ import {
   cleanHeaderText,
   cleanSnippet,
 } from './helpers';
+import { upsertMessages } from '@/db/repositories/messages';
 
 export const getMessage = async (
   accountId: string,
@@ -31,8 +32,13 @@ export const getThreadMessages = async (
 
   if (!thread.messages) return [];
 
-  const messages = thread.messages.map((m) => parseGmailMessage(accountId, m));
-  return messages.filter((m): m is EmailMessage => m !== null);
+  const parsed = thread.messages.map((m) => parseGmailMessage(accountId, m));
+  const valid = parsed.filter((m): m is EmailMessage => m !== null);
+
+  // Persist to SQLite
+  try { upsertMessages(valid); } catch { /* non-blocking */ }
+
+  return valid;
 };
 
 export const parseGmailMessage = (
