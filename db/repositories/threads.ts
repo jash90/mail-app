@@ -1,0 +1,316 @@
+import { eq, and, inArray, sql, desc, asc } from 'drizzle-orm';
+import { db } from '../client';
+import {
+  threads,
+  threadLabels,
+  participants,
+  threadParticipants,
+} from '../schema';
+import type { EmailThread, EmailParticipant } from '@/types';
+
+/** Batch upsert threads with their participants and labels in a single transaction. */
+export function upsertThreads(threadList: EmailThread[]): void {
+  if (threadList.length === 0) return;
+
+  db.transaction((tx) => {
+    for (const t of threadList) {
+      // Upsert thread
+      tx.insert(threads)
+        .values({
+          id: t.id,
+          accountId: t.account_id,
+          providerThreadId: t.provider_thread_id,
+          subject: t.subject,
+          snippet: t.snippet,
+          lastMessageAt: t.last_message_at,
+          messageCount: t.message_count,
+          isRead: t.is_read,
+          isStarred: t.is_starred,
+          isArchived: t.is_archived,
+          isTrashed: t.is_trashed,
+          createdAt: t.created_at,
+          updatedAt: t.updated_at,
+        })
+        .onConflictDoUpdate({
+          target: threads.id,
+          set: {
+            subject: sql`excluded.subject`,
+            snippet: sql`excluded.snippet`,
+            lastMessageAt: sql`excluded.last_message_at`,
+            messageCount: sql`excluded.message_count`,
+            isRead: sql`excluded.is_read`,
+            isStarred: sql`excluded.is_starred`,
+            isArchived: sql`excluded.is_archived`,
+            isTrashed: sql`excluded.is_trashed`,
+            updatedAt: sql`excluded.updated_at`,
+          },
+        })
+        .run();
+
+      // Replace labels
+      tx.delete(threadLabels).where(eq(threadLabels.threadId, t.id)).run();
+      for (const labelId of t.label_ids) {
+        tx.insert(threadLabels)
+          .values({ threadId: t.id, labelId })
+          .onConflictDoNothing()
+          .run();
+      }
+
+      // Replace participants
+      tx.delete(threadParticipants)
+        .where(eq(threadParticipants.threadId, t.id))
+        .run();
+
+      for (let i = 0; i < t.participants.length; i++) {
+        const p = t.participants[i];
+        const email = p.email.toLowerCase();
+
+        // Upsert participant
+        tx.insert(participants)
+          .values({ email, name: p.name })
+          .onConflictDoUpdate({
+            target: participants.email,
+            set: { name: sql`COALESCE(excluded.name, participants.name)` },
+          })
+          .run();
+
+        const row = tx
+          .select({ id: participants.id })
+          .from(participants)
+          .where(eq(participants.email, email))
+          .get();
+
+        if (row) {
+          tx.insert(threadParticipants)
+            .values({ threadId: t.id, participantId: row.id, position: i })
+            .onConflictDoNothing()
+            .run();
+        }
+      }
+    }
+  });
+}
+
+export type SortMode = 'recent' | 'oldest' | 'most_messages' | 'unread_first' | 'starred_first';
+
+interface PaginationOptions {
+  labelIds?: string[];
+  sortMode?: SortMode;
+  limit?: number;
+  offset?: number;
+}
+
+/** Read threads from SQLite with SQL-based sorting and pagination. */
+export function getThreadsPaginated(
+  accountId: string,
+  options: PaginationOptions = {},
+): EmailThread[] {
+  const { labelIds, sortMode = 'recent', limit = 50, offset = 0 } = options;
+
+  // Build ORDER BY based on sort mode
+  const orderBy = (() => {
+    switch (sortMode) {
+      case 'recent':
+        return desc(threads.lastMessageAt);
+      case 'oldest':
+        return asc(threads.lastMessageAt);
+      case 'most_messages':
+        return desc(threads.messageCount);
+      case 'unread_first':
+        return asc(threads.isRead); // false (0) before true (1)
+      case 'starred_first':
+        return desc(threads.isStarred); // true (1) before false (0)
+    }
+  })();
+
+  // When filtering by labels, use DISTINCT + join; otherwise plain select
+  const threadColumns = {
+    id: threads.id,
+    accountId: threads.accountId,
+    providerThreadId: threads.providerThreadId,
+    subject: threads.subject,
+    snippet: threads.snippet,
+    lastMessageAt: threads.lastMessageAt,
+    messageCount: threads.messageCount,
+    isRead: threads.isRead,
+    isStarred: threads.isStarred,
+    isArchived: threads.isArchived,
+    isTrashed: threads.isTrashed,
+    createdAt: threads.createdAt,
+    updatedAt: threads.updatedAt,
+  };
+
+  const hasLabels = labelIds && labelIds.length > 0;
+  const threadRows = hasLabels
+    ? db.selectDistinct(threadColumns).from(threads)
+        .innerJoin(threadLabels, eq(threads.id, threadLabels.threadId))
+        .where(and(eq(threads.accountId, accountId), inArray(threadLabels.labelId, labelIds)))
+        .orderBy(orderBy, desc(threads.lastMessageAt))
+        .limit(limit).offset(offset).all()
+    : db.select().from(threads)
+        .where(eq(threads.accountId, accountId))
+        .orderBy(orderBy, desc(threads.lastMessageAt))
+        .limit(limit).offset(offset).all();
+
+  // Hydrate participants and labels for each thread
+  return threadRows.map((row) => hydrateThread(row));
+}
+
+/** Get a single thread by ID with participants and labels. */
+export function getThreadById(id: string): EmailThread | null {
+  const row = db.select().from(threads).where(eq(threads.id, id)).get();
+  if (!row) return null;
+  return hydrateThread(row);
+}
+
+/** Update thread flags (is_read, is_starred, etc.). */
+export function updateThreadFlags(
+  id: string,
+  flags: Partial<{
+    is_read: boolean;
+    is_starred: boolean;
+    is_archived: boolean;
+    is_trashed: boolean;
+  }>,
+): void {
+  const set: Record<string, boolean> = {};
+  if (flags.is_read !== undefined) set.is_read = flags.is_read;
+  if (flags.is_starred !== undefined) set.is_starred = flags.is_starred;
+  if (flags.is_archived !== undefined) set.is_archived = flags.is_archived;
+  if (flags.is_trashed !== undefined) set.is_trashed = flags.is_trashed;
+
+  if (Object.keys(set).length === 0) return;
+
+  db.update(threads).set(set).where(eq(threads.id, id)).run();
+}
+
+/** Delete a thread and all related data (cascade). */
+export function deleteThread(id: string): void {
+  db.delete(threads).where(eq(threads.id, id)).run();
+}
+
+/** Get thread count for an account. */
+export function getThreadCount(accountId: string): number {
+  const row = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(threads)
+    .where(eq(threads.accountId, accountId))
+    .get();
+  return row?.count ?? 0;
+}
+
+/** Quick count check — how many of the candidate IDs already exist locally. */
+export function countExistingThreads(accountId: string, candidateIds: string[]): number {
+  if (candidateIds.length === 0) return 0;
+  return findMatchingProviderThreadIds(accountId, candidateIds).size;
+}
+
+/** Find provider thread IDs from candidateIds that match an extra WHERE condition (or all existing ones). */
+function findMatchingProviderThreadIds(
+  accountId: string,
+  candidateIds: string[],
+  extraCondition?: ReturnType<typeof sql>,
+): Set<string> {
+  const conditions = [
+    eq(threads.accountId, accountId),
+    inArray(threads.providerThreadId, candidateIds),
+    ...(extraCondition ? [extraCondition] : []),
+  ];
+
+  const rows = db
+    .select({ providerThreadId: threads.providerThreadId })
+    .from(threads)
+    .where(and(...conditions))
+    .all();
+
+  return new Set(rows.map((r) => r.providerThreadId));
+}
+
+/** Filter out provider thread IDs that already exist in local DB — returns only missing ones. */
+export function filterNewProviderThreadIds(accountId: string, candidateIds: string[]): string[] {
+  if (candidateIds.length === 0) return [];
+  const existingSet = findMatchingProviderThreadIds(accountId, candidateIds);
+  return candidateIds.filter((id) => !existingSet.has(id));
+}
+
+/** Filter out provider thread IDs that were updated within the last `maxAgeMs` — returns only stale/missing ones. */
+export function filterStaleProviderThreadIds(
+  accountId: string,
+  candidateIds: string[],
+  maxAgeMs: number = 24 * 60 * 60 * 1000,
+): string[] {
+  if (candidateIds.length === 0) return [];
+  const cutoff = new Date(Date.now() - maxAgeMs).toISOString();
+  const freshSet = findMatchingProviderThreadIds(
+    accountId, candidateIds, sql`${threads.updatedAt} > ${cutoff}`,
+  );
+  return candidateIds.filter((id) => !freshSet.has(id));
+}
+
+/** Remove threads from DB whose providerThreadId is NOT in the given API list (i.e. no longer in INBOX). */
+export function purgeThreadsNotInList(accountId: string, apiThreadIds: string[]): number {
+  if (apiThreadIds.length === 0) return 0;
+
+  // Get all local provider thread IDs for this account
+  const localRows = db
+    .select({ id: threads.id, providerThreadId: threads.providerThreadId })
+    .from(threads)
+    .where(eq(threads.accountId, accountId))
+    .all();
+
+  const apiSet = new Set(apiThreadIds);
+  const toDelete = localRows.filter((r) => !apiSet.has(r.providerThreadId));
+
+  if (toDelete.length === 0) return 0;
+
+  // Bulk delete — cascades handle threadLabels, threadParticipants, messages
+  const idsToDelete = toDelete.map((r) => r.id);
+  db.delete(threads).where(inArray(threads.id, idsToDelete)).run();
+  return toDelete.length;
+}
+
+// --- Helpers ---
+
+function hydrateThread(row: typeof threads.$inferSelect): EmailThread {
+  // Get participants
+  const participantRows = db
+    .select({
+      email: participants.email,
+      name: participants.name,
+    })
+    .from(threadParticipants)
+    .innerJoin(participants, eq(threadParticipants.participantId, participants.id))
+    .where(eq(threadParticipants.threadId, row.id))
+    .orderBy(asc(threadParticipants.position))
+    .all();
+
+  const emailParticipants: EmailParticipant[] = participantRows.map((p) => ({
+    email: p.email,
+    name: p.name,
+  }));
+
+  // Get labels
+  const labelRows = db
+    .select({ labelId: threadLabels.labelId })
+    .from(threadLabels)
+    .where(eq(threadLabels.threadId, row.id))
+    .all();
+
+  return {
+    id: row.id,
+    account_id: row.accountId,
+    provider_thread_id: row.providerThreadId,
+    subject: row.subject,
+    snippet: row.snippet,
+    participants: emailParticipants,
+    last_message_at: row.lastMessageAt,
+    message_count: row.messageCount,
+    is_read: row.isRead,
+    is_starred: row.isStarred,
+    is_archived: row.isArchived,
+    is_trashed: row.isTrashed,
+    label_ids: labelRows.map((l) => l.labelId),
+    created_at: row.createdAt,
+    updated_at: row.updatedAt,
+  };
+}
