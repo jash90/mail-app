@@ -11,6 +11,9 @@ config.resolver.extraNodeModules = {
   buffer: require.resolve('buffer/'),
 };
 
+// Allow .sql files to be imported as modules (needed for Drizzle ORM migrations)
+config.resolver.sourceExts = [...(config.resolver.sourceExts || []), 'sql'];
+
 module.exports = withUniwindConfig(config, {
   cssEntryFile: './global.css',
 });
