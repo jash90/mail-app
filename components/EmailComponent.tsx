@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, View, Text } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 
 type EmailItemProps = {
   item: {
@@ -9,41 +9,54 @@ type EmailItemProps = {
     snippet: string;
     isUnread: boolean;
     sentAt: string;
+    importance: number; // 1-5
   };
   onPress?: () => void;
   onLongPress?: () => void;
 };
 
-const EmailComponent: React.FC<EmailItemProps> = ({ item, onPress, onLongPress }) => (
-  <TouchableOpacity
-    className="w-full border-b border-gray-700 px-1 py-3"
-    onPress={onPress}
-    onLongPress={onLongPress}
-    activeOpacity={0.7}
-  >
-    <View className="flex-row items-center justify-between">
+const TIER_STYLES = {
+  5: { name: 'text-xl', subject: 'text-sm', snippet: 'text-sm text-gray-300' },
+  4: { name: 'text-lg', subject: 'text-xs', snippet: 'text-xs text-gray-300' },
+  3: { name: 'text-base', subject: 'text-xs', snippet: 'text-xs text-gray-400' },
+  2: { name: 'text-sm', subject: 'text-xs', snippet: 'text-xs text-gray-500' },
+  1: { name: 'text-sm', subject: 'text-xs', snippet: 'text-xs text-gray-500' },
+} as const;
+
+const EmailComponent: React.FC<EmailItemProps> = ({ item, onPress, onLongPress }) => {
+  const tier = Math.max(1, Math.min(5, item.importance)) as keyof typeof TIER_STYLES;
+  const styles = TIER_STYLES[tier];
+  const weight = item.isUnread ? 'font-bold' : 'font-normal';
+
+  return (
+    <TouchableOpacity
+      className="w-full border-b border-gray-700 px-1 py-3"
+      onPress={onPress}
+      onLongPress={onLongPress}
+      activeOpacity={0.7}
+    >
+      <View className="flex-row items-center justify-between">
+        <Text
+          className={`flex-1 text-white ${styles.name} ${weight}`}
+        >
+          {item.name}
+        </Text>
+        <Text className="text-right text-xs font-light text-gray-300">
+          {item.sentAt}
+        </Text>
+      </View>
+      <Text className={`text-gray-300 ${styles.subject} ${weight}`}>
+        {item.subject}
+      </Text>
       <Text
-        className={`flex-1 text-base text-white ${item.isUnread ? 'font-bold' : 'font-light'}`}
+        className={styles.snippet}
+        numberOfLines={1}
+        ellipsizeMode="tail"
       >
-        {item.name}
+        {item.snippet}
       </Text>
-      <Text className="w-[80px] text-right text-xs font-light text-gray-300">
-        {item.sentAt}
-      </Text>
-    </View>
-    <Text
-      className={`text-xs text-gray-300 ${item.isUnread ? 'font-bold' : 'font-light'}`}
-    >
-      {item.subject}
-    </Text>
-    <Text
-      className="text-xs text-gray-400"
-      numberOfLines={1}
-      ellipsizeMode="tail"
-    >
-      {item.snippet}
-    </Text>
-  </TouchableOpacity>
-);
+    </TouchableOpacity>
+  );
+};
 
 export default EmailComponent;

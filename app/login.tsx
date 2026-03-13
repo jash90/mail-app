@@ -1,14 +1,13 @@
+import { storeTokens } from '@/features/auth/oauthService';
+import { useAuthStore } from '@/store/authStore';
+import {
+    GoogleSignin
+} from '@react-native-google-signin/google-signin';
 import { useRouter } from 'expo-router';
-import { Text, View, TouchableOpacity } from 'react-native';
+import { useEffect } from 'react';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { withUniwind } from 'uniwind';
-import {
-    GoogleSignin,
-    statusCodes,
-} from '@react-native-google-signin/google-signin';
-import { useEffect } from 'react';
-import { useAuthStore } from '@/store/authStore';
-import { storeTokens } from '@/features/auth/oauthService';
 
 const StyledSafeAreaView = withUniwind(SafeAreaView);
 
@@ -52,12 +51,10 @@ export default function LoginScreen() {
                 });
 
                 setUser(userPayload);
-                router.replace('/list');
+                router.replace('/(tabs)/list');
             }
         } catch (error: any) {
-            if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-                console.log('Cancelled');
-            }
+            console.error(error)
         }
     };
 

@@ -1,16 +1,12 @@
-import React from 'react';
 import {
     View,
     Text,
     TextInput,
     TouchableOpacity,
-    Switch,
-    Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { withUniwind } from 'uniwind';
-import Icon from '@expo/vector-icons/SimpleLineIcons';
 import { useAuthStore } from '@/store/authStore';
 import { resetTokens } from '@/features/auth/oauthService';
 import { clearTokenCache } from '@/features/gmail';
@@ -24,10 +20,6 @@ export default function SettingsScreen() {
 
     const clearUser = useAuthStore((s) => s.clearUser);
 
-    const handleBack = () => {
-        router.back();
-    };
-
     const handleLogout = () => {
         clearUser();
         clearTokenCache();
@@ -36,18 +28,10 @@ export default function SettingsScreen() {
     };
 
     return (
-        <StyledSafeAreaView className="flex-1 bg-black p-4">
-            <View className="flex-row items-center justify-between">
-                <Text className="pb-4 text-left text-3xl font-bold text-white">
-                    Settings
-                </Text>
-                <TouchableOpacity
-                    className="items-center justify-center rounded-2xl p-2"
-                    onPress={handleBack}
-                >
-                    <Icon name="close" size={24} color="white" />
-                </TouchableOpacity>
-            </View>
+        <StyledSafeAreaView className="flex-1 bg-black p-4" edges={['top']}>
+            <Text className="pb-4 text-left text-3xl font-bold text-white">
+                Settings
+            </Text>
 
             <View className="flex-1">
                 <Text className="text-base font-semibold text-white">
@@ -71,4 +55,3 @@ export default function SettingsScreen() {
         </StyledSafeAreaView>
     );
 }
-
