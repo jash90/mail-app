@@ -1,13 +1,13 @@
 import EmailComponent from '@/components/EmailComponent';
 import { ListSkeleton } from '@/components/skeletons';
-import { useThreads, useSync, useTrashThread, useContactImportance } from '@/features/gmail';
+import { useThreads, useSync, useSyncNextPage, useTrashThread, useContactImportance } from '@/features/gmail';
 import { threadToEmailProps } from '@/lib/threadTransform';
 import { useAuthStore } from '@/store/authStore';
 import type { EmailThread } from '@/types';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
 import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
-import { Alert, FlatList, RefreshControl, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { ActivityIndicator, Alert, FlatList, RefreshControl, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { withUniwind } from 'uniwind';
 
@@ -19,10 +19,12 @@ export default function ListScreen() {
     const accountId = user?.id ?? '';
     const userEmail = user?.email ?? '';
 
-    const { data: threads, isLoading, isError, refetch } = useThreads(accountId, ['INBOX']);
+    const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useThreads(accountId, ['INBOX']);
+    const threads = useMemo(() => data?.pages.flatMap((page) => page) ?? [], [data]);
     const { data: importanceMap } = useContactImportance(accountId, userEmail);
 
     const sync = useSync(accountId);
+    const syncNextPage = useSyncNextPage(accountId);
     const isRefreshing = sync.isPending;
 
     const handleRefresh = () => {
@@ -31,11 +33,25 @@ export default function ListScreen() {
         });
     };
 
+    const handleEndReached = useCallback(() => {
+        if (hasNextPage && !isFetchingNextPage) {
+            fetchNextPage();
+        } else if (!hasNextPage && !syncNextPage.isPending) {
+            syncNextPage.mutate(undefined, {
+                onSuccess: (result) => {
+                    if (result.synced_threads > 0) fetchNextPage();
+                },
+            });
+        }
+    }, [hasNextPage, isFetchingNextPage, fetchNextPage, syncNextPage.isPending, syncNextPage.mutate]);
+
+    const hasAutoSynced = useRef(false);
     useEffect(() => {
-        if (!isLoading && threads && threads.length === 0) {
+        if (!isLoading && threads.length === 0 && !hasAutoSynced.current) {
+            hasAutoSynced.current = true;
             handleRefresh();
         }
-    }, [isLoading]);
+    }, [isLoading, threads.length]);
 
     const handleCompose = () => {
         router.push('/compose');
@@ -43,16 +59,24 @@ export default function ListScreen() {
 
     const trashThreadMutation = useTrashThread(accountId);
 
-    const handleDelete = (thread: EmailThread) => {
+    const handleDelete = useCallback((thread: EmailThread) => {
         const sender = thread.participants[0]?.name ?? thread.participants[0]?.email ?? 'Unknown';
         Alert.alert('Delete message', `From: ${sender}\n${thread.subject}`, [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Delete', style: 'destructive', onPress: () => trashThreadMutation.mutate(thread.id) },
         ]);
-    };
+    }, [trashThreadMutation.mutate]);
 
-    const handleThread = (id: string) =>
-        router.push({ pathname: '/thread/[id]', params: { id } })
+    const handleThread = useCallback((id: string) =>
+        router.push({ pathname: '/thread/[id]', params: { id } }), [router]);
+
+    const renderItem = useCallback(({ item }: { item: EmailThread }) => (
+        <EmailComponent
+            item={threadToEmailProps(item, importanceMap)}
+            onPress={() => handleThread(item.id)}
+            onLongPress={() => handleDelete(item)}
+        />
+    ), [importanceMap, handleThread, handleDelete]);
 
     if (isError) {
         return (
@@ -76,18 +100,21 @@ export default function ListScreen() {
             </View>
 
             {!isLoading ? <FlatList
-                data={threads ?? []}
+                data={threads}
                 keyExtractor={(item) => item.id}
                 refreshControl={
                     <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor="white" colors={['white']} />
                 }
-                renderItem={({ item }) => (
-                    <EmailComponent
-                        item={threadToEmailProps(item, importanceMap)}
-                        onPress={() => handleThread(item.id)}
-                        onLongPress={() => handleDelete(item)}
-                    />
-                )}
+                renderItem={renderItem}
+                onEndReached={handleEndReached}
+                onEndReachedThreshold={0.5}
+                ListFooterComponent={
+                    (isFetchingNextPage || syncNextPage.isPending) ? (
+                        <View className="py-4">
+                            <ActivityIndicator color="white" />
+                        </View>
+                    ) : null
+                }
             /> : null}
 
             {isLoading ? <ListSkeleton /> : null}

@@ -1,5 +1,6 @@
 import {
   useQuery,
+  useInfiniteQuery,
   useMutation,
   useQueryClient,
   type QueryKey,
@@ -19,13 +20,14 @@ import {
   trashThread,
   deleteThread,
 } from './modify';
-import { performIncrementalSync, performFullSync } from './sync';
+import { performIncrementalSync, performFullSync, syncNextPage } from './sync';
 import { getThreadsPaginated } from '@/db/repositories/threads';
 import { getSyncState, upsertSyncState } from '@/db/repositories/syncState';
 import { getContactImportanceMap } from '@/db/repositories/stats';
 
 const THIRTY_MINUTES = 30 * 60 * 1000;
 const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+const PAGE_SIZE = 50;
 
 const useGmailMutation = <TVariables>(
   accountId: string,
@@ -44,19 +46,36 @@ const useGmailMutation = <TVariables>(
   });
 };
 
-/** Read threads from SQLite with SQL-based sorting. */
+/** Read threads from SQLite with SQL-based sorting and infinite scrolling. */
 export const useThreads = (
   accountId: string,
   labelIds: string[] = ['INBOX'],
 ) =>
-  useQuery({
+  useInfiniteQuery({
     queryKey: gmailKeys.threads(accountId, labelIds, 'recent'),
-    queryFn: () =>
-      getThreadsPaginated(accountId, { labelIds, sortMode: 'recent', limit: 200 }),
+    queryFn: ({ pageParam = 0 }) =>
+      getThreadsPaginated(accountId, { labelIds, sortMode: 'recent', limit: PAGE_SIZE, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, _allPages, lastPageParam) =>
+      lastPage.length === PAGE_SIZE ? lastPageParam + PAGE_SIZE : undefined,
     enabled: !!accountId,
     staleTime: TWENTY_FOUR_HOURS,
     gcTime: TWENTY_FOUR_HOURS,
   });
+
+/** Fetch the next page of threads from Gmail API when local data runs out. */
+export const useSyncNextPage = (accountId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => syncNextPage(accountId),
+    onSuccess: (result) => {
+      upsertSyncState(accountId, result.new_sync_state);
+      if (result.synced_threads > 0) {
+        queryClient.invalidateQueries({ queryKey: gmailKeys.threads(accountId) });
+      }
+    },
+  });
+};
 
 /** Contact importance tiers (1-5) based on email exchange history. */
 export const useContactImportance = (accountId: string, userEmail: string) =>

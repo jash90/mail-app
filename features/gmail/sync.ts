@@ -2,6 +2,7 @@ import type { SyncState, SyncResult } from '@/types';
 import type { GmailHistoryEvent } from './types';
 import { gmailRequest } from './api';
 import { listThreads, batchGetThreads } from './threads';
+import { getSyncState, upsertSyncState } from '@/db/repositories/syncState';
 
 const handleSyncError = (
   result: SyncResult,
@@ -99,5 +100,40 @@ export const performFullSync = async (
     return result;
   } catch (error) {
     return handleSyncError(result, error, 'Full sync failed');
+  }
+};
+
+/** Fetch the next page of threads from Gmail API using the saved nextPageToken. */
+export const syncNextPage = async (
+  accountId: string,
+): Promise<SyncResult> => {
+  const state = getSyncState(accountId);
+  const result: SyncResult = {
+    success: true,
+    synced_threads: 0,
+    synced_messages: 0,
+    errors: [],
+    new_sync_state: {
+      status: 'idle',
+      history_id: state?.history_id,
+      last_synced_at: state?.last_synced_at,
+    },
+  };
+
+  if (!state?.next_page_token) {
+    return result;
+  }
+
+  try {
+    const { threads, nextPageToken } = await listThreads(accountId, ['INBOX'], {
+      cursor: state.next_page_token,
+    });
+
+    result.synced_threads = threads.length;
+    result.new_sync_state.next_page_token = nextPageToken;
+
+    return result;
+  } catch (error) {
+    return handleSyncError(result, error, 'Next page sync failed');
   }
 };
