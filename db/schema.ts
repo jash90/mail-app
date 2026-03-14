@@ -137,6 +137,14 @@ export const summaryCache = sqliteTable('summary_cache', {
   createdAt: text('created_at').notNull(),
 });
 
+export const modelState = sqliteTable('model_state', {
+  modelId: text('model_id').primaryKey(),
+  displayName: text('display_name').notNull(),
+  filePath: text('file_path').notNull(),
+  fileSize: integer('file_size').notNull(),
+  downloadedAt: text('downloaded_at').notNull(),
+});
+
 export const syncState = sqliteTable('sync_state', {
   accountId: text('account_id').primaryKey(),
   historyId: text('history_id'),

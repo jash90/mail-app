@@ -1,5 +1,7 @@
 import { getUnreadThreads } from '@/db/repositories/threads';
 import { getSummaryCache, summarizeEmail } from '@/features/ai/api';
+import { useAiProvider, useStreamingResponse } from '@/features/ai/local/hooks';
+import { getActiveProviderName } from '@/features/ai/providers';
 import { useAuthStore } from '@/store/authStore';
 import type { EmailThread } from '@/types';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
@@ -26,10 +28,13 @@ interface SummaryItem {
 
 export default function SummaryScreen() {
   const router = useRouter();
+  const { activeProvider } = useAiProvider();
+  const { streamingResponse, isGenerating: localGenerating } = useStreamingResponse();
   const accountId = useAuthStore((s) => s.user?.id) ?? '';
   const [items, setItems] = useState<SummaryItem[]>([]);
   const [processed, setProcessed] = useState(0);
   const cancelledRef = useRef(false);
+  const isLocalStreaming = localGenerating && getActiveProviderName() === 'local';
 
   useEffect(() => {
     cancelledRef.current = false;
@@ -70,7 +75,8 @@ export default function SummaryScreen() {
           );
         } catch (err) {
           console.warn(`[SummaryScreen] Failed to summarize thread ${t.id}`);
-          console.log({ err })
+
+
           if (cancelledRef.current) break;
           setItems((prev) =>
             prev.map((item, idx) =>
@@ -136,6 +142,11 @@ export default function SummaryScreen() {
           <Icon name="arrow-left" size={20} color="white" />
         </TouchableOpacity>
         <Text className="text-2xl font-bold text-white">AI Summary</Text>
+        <View className="ml-auto rounded-full bg-zinc-800 px-2.5 py-1">
+          <Text className="text-xs font-medium text-zinc-400">
+            {activeProvider === 'local' ? 'Local' : 'Cloud'}
+          </Text>
+        </View>
       </View>
 
       {total === 0 ? (
@@ -166,11 +177,17 @@ export default function SummaryScreen() {
                 </Text>
 
                 {item.loading ? (
-                  <ActivityIndicator
-                    className="mt-3 self-start"
-                    size="small"
-                    color="#818cf8"
-                  />
+                  isLocalStreaming && streamingResponse ? (
+                    <Text className="mt-2 text-sm leading-5 text-zinc-400">
+                      {streamingResponse}
+                    </Text>
+                  ) : (
+                    <ActivityIndicator
+                      className="mt-3 self-start"
+                      size="small"
+                      color="#818cf8"
+                    />
+                  )
                 ) : item.error ? (
                   <View className="mt-2 flex-row items-center gap-3">
                     <Text className="flex-1 text-sm text-red-400">

@@ -1,5 +1,7 @@
 import { generateReply } from '@/features/ai/api';
 import { useMarkAsRead, useSendReply, useThread, useThreadMessages } from '@/features/gmail';
+import { useStreamingResponse } from '@/features/ai/local/hooks';
+import { getActiveProviderName } from '@/features/ai/providers';
 import { parseCompositeId } from '@/lib/parseCompositeId';
 import { useAuthStore } from '@/store/authStore';
 import { ThreadMessageItem } from '@/components/ThreadMessageItem';
@@ -27,6 +29,8 @@ export default function ThreadScreen() {
   const [generatingAI, setGeneratingAI] = useState(false);
   const [webViewHeights, setWebViewHeights] = useState<Record<string, number>>({});
   const user = useAuthStore((s) => s.user);
+  const { streamingResponse, isGenerating: localGenerating } = useStreamingResponse();
+  const isStreamingLocal = generatingAI && localGenerating && getActiveProviderName() === 'local';
 
   const { accountId, providerId: providerThreadId } = useMemo(
     () => parseCompositeId(id),
@@ -173,17 +177,25 @@ export default function ThreadScreen() {
       </ScrollView>
 
       <View className="absolute right-0 bottom-0 left-0 flex-row flex-1 justify-between bg-zinc-900 p-4">
-        <TextInput
-          className="mb-3 flex-1 rounded-lg p-3 text-base text-white"
-          placeholder="Write your message"
-          placeholderTextColor="#888"
-          value={message}
-          onChangeText={setMessage}
-          multiline
-          numberOfLines={7}
-          textAlignVertical="top"
-          editable={!replying}
-        />
+        {isStreamingLocal ? (
+          <ScrollView className="mb-3 flex-1 rounded-lg p-3">
+            <Text className="text-base text-white">
+              {streamingResponse || '...'}
+            </Text>
+          </ScrollView>
+        ) : (
+          <TextInput
+            className="mb-3 flex-1 rounded-lg p-3 text-base text-white"
+            placeholder="Write your message"
+            placeholderTextColor="#888"
+            value={message}
+            onChangeText={setMessage}
+            multiline
+            numberOfLines={7}
+            textAlignVertical="top"
+            editable={!replying}
+          />
+        )}
         <View className="items-center justify-between gap-4">
           <TouchableOpacity
             className="items-center justify-center rounded-4xl bg-black p-4"

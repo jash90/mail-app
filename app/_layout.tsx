@@ -4,8 +4,10 @@ global.Buffer = global.Buffer || Buffer;
 import '../global.css';
 
 import { prefetchSummaries } from '@/features/ai/api';
+import { getActiveProviderName } from '@/features/ai/providers';
 import { getStoredTokens } from '@/features/auth/oauthService';
 import { useAuthStore } from '@/store/authStore';
+import { useAiSettingsStore } from '@/store/aiSettingsStore';
 import { db } from '@/db/client';
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import migrations from '../drizzle/migrations';
@@ -14,6 +16,7 @@ import { Stack, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { Text, View } from 'react-native';
 import 'react-native-reanimated';
+import { LocalAIProvider } from '@/features/ai/local/LocalAIProvider';
 
 const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
 
@@ -39,7 +42,10 @@ export default function RootLayout() {
       if (tokens?.user?.id) {
         setUser(tokens?.user);
         setTimeout(() => router.replace('/(tabs)/list'), 200);
-        prefetchSummaries(tokens.user.id).catch(() => {});
+        const activeProvider = getActiveProviderName();
+        if (activeProvider === 'cloud') {
+          prefetchSummaries(tokens.user.id).catch(() => {});
+        }
       } else {
         setTimeout(() => router.replace('/login'), 200);
       }
@@ -64,16 +70,18 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Stack>
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Protected guard={isAuthenticated}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="compose" options={{ headerShown: false }} />
-          <Stack.Screen name="thread/[id]" options={{ headerShown: false }} />
-          <Stack.Screen name="summary" options={{ headerShown: false }} />
-        </Stack.Protected>
-      </Stack>
+      <LocalAIProvider>
+        <Stack>
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Protected guard={isAuthenticated}>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="compose" options={{ headerShown: false }} />
+            <Stack.Screen name="thread/[id]" options={{ headerShown: false }} />
+            <Stack.Screen name="summary" options={{ headerShown: false }} />
+          </Stack.Protected>
+        </Stack>
+      </LocalAIProvider>
     </QueryClientProvider>
   );
 }
