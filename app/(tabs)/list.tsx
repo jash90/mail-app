@@ -52,11 +52,12 @@ export default function ListScreen() {
   const syncNextPage = useSyncNextPage(accountId);
   const isRefreshing = sync.isPending;
 
+  const syncMutate = sync.mutate;
   const handleRefresh = useCallback(() => {
-    sync.mutate(undefined, {
+    syncMutate(undefined, {
       onSuccess: () => refetch(),
     });
-  }, [sync, refetch]);
+  }, [syncMutate, refetch]);
 
   const syncNextPagePendingRef = useRef(syncNextPage.isPending);
   syncNextPagePendingRef.current = syncNextPage.isPending;

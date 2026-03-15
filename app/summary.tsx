@@ -4,7 +4,7 @@ import { useAuthStore } from '@/store/authStore';
 import type { EmailThread } from '@/types';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -26,12 +26,60 @@ interface SummaryItem {
   error: string | null;
 }
 
+const SummaryItemRow = memo(function SummaryItemRow({
+  item,
+  index,
+  onRetry,
+}: {
+  item: SummaryItem;
+  index: number;
+  onRetry: (index: number) => void;
+}) {
+  return (
+    <View className="mb-3 rounded-xl bg-zinc-900 p-4">
+      <Text className="text-sm font-semibold text-indigo-400" numberOfLines={1}>
+        {item.thread.participants[0]?.name ||
+          item.thread.participants[0]?.email ||
+          'Unknown'}
+      </Text>
+      <Text className="mt-1 text-base font-medium text-white" numberOfLines={2}>
+        {item.thread.subject}
+      </Text>
+
+      {item.loading ? (
+        <ActivityIndicator
+          className="mt-3 self-start"
+          size="small"
+          color="#818cf8"
+        />
+      ) : item.error ? (
+        <View className="mt-2 flex-row items-center gap-3">
+          <Text className="flex-1 text-sm text-red-400">
+            Error: {item.error}
+          </Text>
+          <TouchableOpacity
+            onPress={() => onRetry(index)}
+            className="rounded-lg bg-indigo-600 px-3 py-1.5"
+          >
+            <Text className="text-xs font-semibold text-white">Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <Text className="mt-2 text-sm leading-5 text-zinc-300">
+          {item.summary}
+        </Text>
+      )}
+    </View>
+  );
+});
+
 export default function SummaryScreen() {
   const router = useRouter();
   const accountId = useAuthStore((s) => s.user?.id) ?? '';
   const [items, setItems] = useState<SummaryItem[]>([]);
   const [processed, setProcessed] = useState(0);
   const cancelledRef = useRef(false);
+  const retryAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     cancelledRef.current = false;
@@ -98,42 +146,65 @@ export default function SummaryScreen() {
     return () => {
       cancelledRef.current = true;
       abortController.abort();
+      retryAbortRef.current?.abort();
     };
   }, [accountId]);
 
-  const retrySummary = async (index: number) => {
-    const item = items[index];
+  const retrySummary = useCallback(async (index: number) => {
     setItems((prev) =>
       prev.map((it, idx) =>
         idx === index ? { ...it, loading: true, error: null } : it,
       ),
     );
-    try {
-      const summary = await summarizeEmail(
-        item.thread.id,
-        item.thread.subject,
-        item.thread.snippet,
-      );
-      setItems((prev) =>
-        prev.map((it, idx) =>
-          idx === index ? { ...it, summary, loading: false } : it,
-        ),
-      );
-    } catch (err) {
-      console.warn(`[SummaryScreen] Retry failed for thread ${item.thread.id}`);
-      setItems((prev) =>
-        prev.map((it, idx) =>
-          idx === index
-            ? {
-                ...it,
-                loading: false,
-                error: err instanceof Error ? err.message : 'Unknown error',
-              }
-            : it,
-        ),
-      );
-    }
-  };
+
+    const abort = new AbortController();
+    retryAbortRef.current = abort;
+
+    // Read the item from state at call time
+    setItems((prev) => {
+      const item = prev[index];
+      (async () => {
+        try {
+          const summary = await summarizeEmail(
+            item.thread.id,
+            item.thread.subject,
+            item.thread.snippet,
+            abort.signal,
+          );
+          if (abort.signal.aborted) return;
+          setItems((p) =>
+            p.map((it, idx) =>
+              idx === index ? { ...it, summary, loading: false } : it,
+            ),
+          );
+        } catch (err) {
+          if (abort.signal.aborted) return;
+          console.warn(
+            `[SummaryScreen] Retry failed for thread ${item.thread.id}`,
+          );
+          setItems((p) =>
+            p.map((it, idx) =>
+              idx === index
+                ? {
+                    ...it,
+                    loading: false,
+                    error: err instanceof Error ? err.message : 'Unknown error',
+                  }
+                : it,
+            ),
+          );
+        }
+      })();
+      return prev;
+    });
+  }, []);
+
+  const renderItem = useCallback(
+    ({ item, index }: { item: SummaryItem; index: number }) => (
+      <SummaryItemRow item={item} index={index} onRetry={retrySummary} />
+    ),
+    [retrySummary],
+  );
 
   const total = items.length;
 
@@ -162,50 +233,7 @@ export default function SummaryScreen() {
             data={items}
             keyExtractor={(item) => item.thread.id}
             contentContainerStyle={listContentStyle}
-            renderItem={({ item, index }) => (
-              <View className="mb-3 rounded-xl bg-zinc-900 p-4">
-                <Text
-                  className="text-sm font-semibold text-indigo-400"
-                  numberOfLines={1}
-                >
-                  {item.thread.participants[0]?.name ||
-                    item.thread.participants[0]?.email ||
-                    'Unknown'}
-                </Text>
-                <Text
-                  className="mt-1 text-base font-medium text-white"
-                  numberOfLines={2}
-                >
-                  {item.thread.subject}
-                </Text>
-
-                {item.loading ? (
-                  <ActivityIndicator
-                    className="mt-3 self-start"
-                    size="small"
-                    color="#818cf8"
-                  />
-                ) : item.error ? (
-                  <View className="mt-2 flex-row items-center gap-3">
-                    <Text className="flex-1 text-sm text-red-400">
-                      Error: {item.error}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => retrySummary(index)}
-                      className="rounded-lg bg-indigo-600 px-3 py-1.5"
-                    >
-                      <Text className="text-xs font-semibold text-white">
-                        Retry
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <Text className="mt-2 text-sm leading-5 text-zinc-300">
-                    {item.summary}
-                  </Text>
-                )}
-              </View>
-            )}
+            renderItem={renderItem}
           />
         </>
       )}

@@ -6,7 +6,11 @@ import {
   participants,
   threadParticipants,
 } from '../schema';
+import { chunk } from '@/lib/chunk';
 import type { EmailThread, EmailParticipant } from '@/types';
+
+/** SQLite max host parameters — stay well under the 999 limit. */
+const CHUNK_SIZE = 500;
 
 /** Batch upsert threads with their participants and labels in a single transaction. */
 export function upsertThreads(threadList: EmailThread[]): void {
@@ -137,8 +141,7 @@ export function getThreadsPaginated(
         .orderBy(orderBy, desc(threads.lastMessageAt))
         .limit(limit).offset(offset).all();
 
-  // Hydrate participants and labels for each thread
-  return threadRows.map((row) => hydrateThread(row));
+  return hydrateThreads(threadRows);
 }
 
 /** Get unread threads for an account, sorted by most recent. */
@@ -160,7 +163,7 @@ export function getUnreadThreads(accountId: string, limit = 20): EmailThread[] {
     .limit(limit)
     .all();
 
-  return threadRows.map((row) => hydrateThread(row));
+  return hydrateThreads(threadRows);
 }
 
 function getThreadColumns() {
@@ -236,19 +239,25 @@ function findMatchingProviderThreadIds(
   candidateIds: string[],
   extraCondition?: ReturnType<typeof sql>,
 ): Set<string> {
-  const conditions = [
-    eq(threads.accountId, accountId),
-    inArray(threads.providerThreadId, candidateIds),
-    ...(extraCondition ? [extraCondition] : []),
-  ];
+  const result = new Set<string>();
 
-  const rows = db
-    .select({ providerThreadId: threads.providerThreadId })
-    .from(threads)
-    .where(and(...conditions))
-    .all();
+  for (const batch of chunk(candidateIds, CHUNK_SIZE)) {
+    const conditions = [
+      eq(threads.accountId, accountId),
+      inArray(threads.providerThreadId, batch),
+      ...(extraCondition ? [extraCondition] : []),
+    ];
 
-  return new Set(rows.map((r) => r.providerThreadId));
+    const rows = db
+      .select({ providerThreadId: threads.providerThreadId })
+      .from(threads)
+      .where(and(...conditions))
+      .all();
+
+    for (const r of rows) result.add(r.providerThreadId);
+  }
+
+  return result;
 }
 
 /** Filter out provider thread IDs that already exist in local DB — returns only missing ones. */
@@ -288,14 +297,88 @@ export function purgeThreadsNotInList(accountId: string, apiThreadIds: string[])
 
   if (toDelete.length === 0) return 0;
 
-  // Bulk delete — cascades handle threadLabels, threadParticipants, messages
+  // Bulk delete in chunks — cascades handle threadLabels, threadParticipants, messages
   const idsToDelete = toDelete.map((r) => r.id);
-  db.delete(threads).where(inArray(threads.id, idsToDelete)).run();
+  db.transaction((tx) => {
+    for (const batch of chunk(idsToDelete, CHUNK_SIZE)) {
+      tx.delete(threads).where(inArray(threads.id, batch)).run();
+    }
+  });
   return toDelete.length;
 }
 
 // --- Helpers ---
 
+/** Batch-hydrate multiple thread rows with 2 queries instead of 2×N. */
+function hydrateThreads(rows: (typeof threads.$inferSelect)[]): EmailThread[] {
+  if (rows.length === 0) return [];
+
+  const threadIds = rows.map((r) => r.id);
+
+  // Batch fetch all participants for all threads (1 query)
+  const allParticipantRows = db
+    .select({
+      threadId: threadParticipants.threadId,
+      email: participants.email,
+      name: participants.name,
+      position: threadParticipants.position,
+    })
+    .from(threadParticipants)
+    .innerJoin(participants, eq(threadParticipants.participantId, participants.id))
+    .where(inArray(threadParticipants.threadId, threadIds))
+    .orderBy(asc(threadParticipants.position))
+    .all();
+
+  const participantsByThread = new Map<string, EmailParticipant[]>();
+  for (const p of allParticipantRows) {
+    let list = participantsByThread.get(p.threadId);
+    if (!list) {
+      list = [];
+      participantsByThread.set(p.threadId, list);
+    }
+    list.push({ email: p.email, name: p.name });
+  }
+
+  // Batch fetch all labels for all threads (1 query)
+  const allLabelRows = db
+    .select({
+      threadId: threadLabels.threadId,
+      labelId: threadLabels.labelId,
+    })
+    .from(threadLabels)
+    .where(inArray(threadLabels.threadId, threadIds))
+    .all();
+
+  const labelsByThread = new Map<string, string[]>();
+  for (const l of allLabelRows) {
+    let list = labelsByThread.get(l.threadId);
+    if (!list) {
+      list = [];
+      labelsByThread.set(l.threadId, list);
+    }
+    list.push(l.labelId);
+  }
+
+  return rows.map((row) => ({
+    id: row.id,
+    account_id: row.accountId,
+    provider_thread_id: row.providerThreadId,
+    subject: row.subject,
+    snippet: row.snippet,
+    participants: participantsByThread.get(row.id) ?? [],
+    last_message_at: row.lastMessageAt,
+    message_count: row.messageCount,
+    is_read: row.isRead,
+    is_starred: row.isStarred,
+    is_archived: row.isArchived,
+    is_trashed: row.isTrashed,
+    label_ids: labelsByThread.get(row.id) ?? [],
+    created_at: row.createdAt,
+    updated_at: row.updatedAt,
+  }));
+}
+
+/** Hydrate a single thread row — used by getThreadById where N+1 is not an issue. */
 function hydrateThread(row: typeof threads.$inferSelect): EmailThread {
   // Get participants
   const participantRows = db

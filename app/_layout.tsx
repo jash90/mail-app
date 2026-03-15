@@ -53,6 +53,7 @@ export default function RootLayout() {
     })();
 
     return () => abortController.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- router and setUser are stable refs
   }, [migrationSuccess]);
 
   if (migrationError) {
