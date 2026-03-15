@@ -37,19 +37,21 @@ export default function StatsScreen() {
   const displayStats = fullStats ?? stats;
   const [isRefreshing, setIsRefreshing] = useState(false);
   const handleRefresh = useCallback(async () => {
+    if (!accountId) return;
     setIsRefreshing(true);
     try {
       await refetch();
     } finally {
       setIsRefreshing(false);
     }
-  }, [refetch]);
+  }, [accountId, refetch]);
 
   useEffect(() => {
+    if (!accountId) return;
     if (stats && !fullStats && !isLoadingFull && !error) {
       fetchFull();
     }
-  }, [stats, fullStats, isLoadingFull, error, fetchFull]);
+  }, [accountId, stats, fullStats, isLoadingFull, error, fetchFull]);
 
   if (!displayStats) {
     return (

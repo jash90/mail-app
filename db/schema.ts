@@ -30,7 +30,9 @@ export const threadLabels = sqliteTable(
     threadId: text('thread_id')
       .notNull()
       .references(() => threads.id, { onDelete: 'cascade' }),
-    labelId: text('label_id').notNull(),
+    labelId: text('label_id')
+      .notNull()
+      .references(() => labels.id, { onDelete: 'cascade' }),
   },
   (table) => [
     primaryKey({ columns: [table.threadId, table.labelId] }),
@@ -56,7 +58,7 @@ export const threadParticipants = sqliteTable(
       .references(() => threads.id, { onDelete: 'cascade' }),
     participantId: integer('participant_id')
       .notNull()
-      .references(() => participants.id),
+      .references(() => participants.id, { onDelete: 'cascade' }),
     position: integer('position').notNull().default(0),
   },
   (table) => [primaryKey({ columns: [table.threadId, table.participantId] })],

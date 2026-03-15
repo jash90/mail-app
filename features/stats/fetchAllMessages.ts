@@ -202,11 +202,10 @@ async function fetchBatch(
           );
         }
       }
+      onBatch?.(batchThreads, batchMessages);
     } catch (err) {
       console.warn('[Stats] upsert failed:', err);
     }
-
-    onBatch?.(batchThreads, batchMessages);
   }
 
   return { threads: batchThreads, retryIds, skippedCount: skippedCount + invalidCount };
@@ -294,7 +293,7 @@ export async function fetchAllMessages(
     console.log(
       `[Stats] Retry round ${round + 1}/${MAX_RETRY_ROUNDS}: ${retryQueue.length} IDs, backoff ${backoffMs}ms`,
     );
-    await delay(backoffMs); // 4s, 8s, 16s
+    await delay(backoffMs);
 
     const result = await processBatchQueue(
       accountId,

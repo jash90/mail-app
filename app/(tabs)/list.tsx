@@ -60,13 +60,17 @@ export default function ListScreen() {
 
   const syncMutate = sync.mutate;
   const handleRefresh = useCallback(() => {
+    if (!accountId) return;
     syncMutate(undefined, {
       onSuccess: () => {
         refetch();
         prefetchAbortRef.current?.abort();
         const controller = new AbortController();
         prefetchAbortRef.current = controller;
-        prefetchSummaries(accountId, controller.signal).catch(() => {});
+        prefetchSummaries(accountId, controller.signal).catch((err) => {
+          if (err instanceof Error && err.name === 'AbortError') return;
+          console.warn('[ListScreen] prefetchSummaries failed:', err);
+        });
       },
     });
   }, [syncMutate, refetch, accountId]);
@@ -76,6 +80,7 @@ export default function ListScreen() {
   const syncNextPageMutate = syncNextPage.mutate;
 
   const handleEndReached = useCallback(() => {
+    if (!accountId) return;
     if (hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     } else if (!hasNextPage && !syncNextPagePendingRef.current) {
@@ -85,15 +90,22 @@ export default function ListScreen() {
         },
       });
     }
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage, syncNextPageMutate]);
+  }, [
+    accountId,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+    syncNextPageMutate,
+  ]);
 
   const hasAutoSynced = useRef(false);
   useEffect(() => {
+    if (!accountId) return;
     if (!isLoading && threads.length === 0 && !hasAutoSynced.current) {
       hasAutoSynced.current = true;
       handleRefresh();
     }
-  }, [isLoading, threads.length, handleRefresh]);
+  }, [accountId, isLoading, threads.length, handleRefresh]);
 
   const handleCompose = () => {
     router.push('/compose');

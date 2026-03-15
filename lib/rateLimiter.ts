@@ -86,10 +86,20 @@ export function updateThrottleState(
   // Retry-After header
   const retryAfter = response.headers.get('retry-after');
   if (retryAfter) {
+    let delayMs: number | null = null;
     const seconds = parseInt(retryAfter, 10);
     if (!isNaN(seconds)) {
-      state.retryAfterMs = seconds * 1000;
-      state.cooldownUntil = Date.now() + seconds * 1000;
+      delayMs = seconds * 1000;
+    } else {
+      const parsed = Date.parse(retryAfter);
+      if (!isNaN(parsed)) {
+        const diff = parsed - Date.now();
+        if (diff > 0) delayMs = diff;
+      }
+    }
+    if (delayMs !== null) {
+      state.retryAfterMs = delayMs;
+      state.cooldownUntil = Date.now() + delayMs;
     }
   }
 }
@@ -138,8 +148,9 @@ export async function executeWithRetry<T>(
 
       // Compute delay: prefer Retry-After header, fall back to exponential backoff
       const retryAfterHeader = error.response?.headers.get('retry-after');
-      const delayMs = retryAfterHeader
-        ? parseInt(retryAfterHeader, 10) * 1000 + jitter()
+      const retryAfterSec = retryAfterHeader ? parseInt(retryAfterHeader, 10) : NaN;
+      const delayMs = !isNaN(retryAfterSec)
+        ? Math.min(retryAfterSec * 1000 + jitter(), RATE_LIMIT.maxDelayMs)
         : Math.min(
             RATE_LIMIT.baseDelayMs * 2 ** attempt + jitter(),
             RATE_LIMIT.maxDelayMs,
