@@ -9,26 +9,10 @@ import type { GmailMessage, GmailThread } from '@/features/gmail/types';
 import type { EmailThread } from '@/types';
 import type { StatMessage, StatsProgress } from './types';
 
-const BATCH_SIZE = 100;
-const MAX_RETRIES = 3;
-const MAX_RETRY_ROUNDS = 3;
+const BATCH_SIZE = 25;
+const MAX_RETRY_ROUNDS = 5;
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-async function fetchBatchWithRetry(
-  url: string,
-  options: RequestInit,
-): Promise<Response> {
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    try {
-      return await apiRequestRaw(url, options);
-    } catch (error) {
-      if (attempt === MAX_RETRIES - 1) throw error;
-      await delay(1000 * 2 ** attempt);
-    }
-  }
-  throw new Error('Unreachable');
-}
 
 async function listAllThreadIds(
   labelIds: string[] = ['INBOX', 'SENT'],
@@ -115,7 +99,7 @@ async function fetchBatch(
       )
       .join('') + `--${boundary}--`;
 
-  const response = await fetchBatchWithRetry(GMAIL_API.batchUrl, {
+  const response = await apiRequestRaw(GMAIL_API.batchUrl, {
     method: 'POST',
     headers: {
       'Content-Type': `multipart/mixed; boundary=${boundary}`,
@@ -136,8 +120,9 @@ async function fetchBatch(
   let skippedCount = 0;
 
   for (const part of parts) {
-    // Rate-limited or server error → retry
-    if (part.status === 429 || part.status >= 500) {
+    // Rate-limited, quota exceeded, or server error → retry
+    if (part.status === 429 || part.status === 403 || part.status >= 500) {
+      console.warn(`[Batch] Part ${part.contentId ?? '?'} got ${part.status} — queuing for retry`);
       if (part.contentId) {
         retryIds.push(part.contentId);
       }
@@ -243,6 +228,7 @@ export async function fetchAllMessages(
 ): Promise<FetchAllMessagesResult> {
   const allThreadIds = await listAllThreadIds(['INBOX', 'SENT'], onProgress);
   const totalListedCount = allThreadIds.length;
+  console.log(`[Stats] totalListedCount = ${totalListedCount}`);
 
   // Remove threads from DB that are no longer in INBOX
   const purgedCount = purgeThreadsNotInList(accountId, allThreadIds);
@@ -250,23 +236,27 @@ export async function fetchAllMessages(
   // Filter out threads that are fresh in the local DB (updated < 24h ago)
   const staleIds = filterStaleProviderThreadIds(accountId, allThreadIds);
   const cachedCount = totalListedCount - staleIds.length;
+  console.log(`[Stats] cachedCount = ${cachedCount}, staleIds = ${staleIds.length}`);
 
   const allThreads: EmailThread[] = [];
   let { retryIds: retryQueue, skippedCount: totalSkipped } =
-    await processBatchQueue(accountId, staleIds, 'loading', allThreads, 200, onProgress, onBatch);
+    await processBatchQueue(accountId, staleIds, 'loading', allThreads, 1000, onProgress, onBatch);
 
   // Retry rounds with exponential backoff
   for (let round = 0; round < MAX_RETRY_ROUNDS && retryQueue.length > 0; round++) {
-    await delay(4000 * 2 ** round); // 4s, 8s, 16s
+    const backoffMs = 4000 * 2 ** round;
+    console.log(`[Stats] Retry round ${round + 1}/${MAX_RETRY_ROUNDS}: ${retryQueue.length} IDs, backoff ${backoffMs}ms`);
+    await delay(backoffMs); // 4s, 8s, 16s
 
     const result = await processBatchQueue(
-      accountId, retryQueue, 'retrying', allThreads, 200, onProgress, onBatch,
+      accountId, retryQueue, 'retrying', allThreads, 1000, onProgress, onBatch,
     );
     retryQueue = result.retryIds;
     totalSkipped += result.skippedCount;
   }
 
   const failedCount = retryQueue.length;
+  console.log(`[Stats] DONE: totalListed=${totalListedCount} cached=${cachedCount} purged=${purgedCount} loaded=${allThreads.length} failed=${failedCount} skipped=${totalSkipped}`);
   if (failedCount > 0) {
     console.warn(`${failedCount} threads failed after all retry rounds`);
   }

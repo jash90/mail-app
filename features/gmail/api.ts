@@ -1,5 +1,12 @@
 import { GMAIL_API } from '@/config/constants';
 import { getStoredTokens, isTokenExpired, refreshGmailTokens, resetTokens } from '@/features/auth/oauthService';
+import {
+  executeWithRetry,
+  waitForCooldown,
+  updateThrottleState,
+  RetryableError,
+  NonRetryableError,
+} from '@/lib/rateLimiter';
 import { useAuthStore } from '@/store/authStore';
 
 let cachedToken: { value: string; expiresAt: number } | null = null;
@@ -48,28 +55,49 @@ export const apiRequestRaw = async (
 ): Promise<Response> => {
   const token = await getAccessToken('gmail');
 
+  return executeWithRetry(async () => {
+    await waitForCooldown();
 
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...options.headers,
-    },
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...options.headers,
+      },
+    });
+
+    updateThrottleState(response);
+
+    if (response.status === 401) {
+      handleAuthFailure();
+      throw new NonRetryableError('Gmail session expired. Please re-authenticate.');
+    }
+
+    if (response.status === 403) {
+      const body = await response.json().catch(() => ({}));
+      const reason = body?.error?.errors?.[0]?.reason;
+      if (reason === 'rateLimitExceeded' || reason === 'userRateLimitExceeded') {
+        console.warn(`[Gmail API] Rate limit 403: ${reason} — will retry`);
+        throw new RetryableError(`Gmail quota exceeded (403)`, response);
+      }
+      throw new NonRetryableError(
+        body?.error?.message || `API error: 403`,
+      );
+    }
+
+    if (response.status === 429 || response.status >= 500) {
+      throw new RetryableError(`API error: ${response.status}`, response);
+    }
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new NonRetryableError(
+        error.error?.message || `API error: ${response.status}`,
+      );
+    }
+
+    return response;
   });
-
-  if (response.status === 401) {
-    handleAuthFailure();
-    throw new Error('Gmail session expired. Please re-authenticate.');
-  }
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      error.error?.message || `API error: ${response.status}`,
-    );
-  }
-
-  return response;
 };
 
 export const apiRequest = async <T>(
