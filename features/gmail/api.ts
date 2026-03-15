@@ -53,9 +53,8 @@ export const apiRequestRaw = async (
   url: string,
   options: RequestInit = {},
 ): Promise<Response> => {
-  const token = await getAccessToken('gmail');
-
   return executeWithRetry(async () => {
+    const token = await getAccessToken('gmail');
     await waitForCooldown();
 
     const response = await fetch(url, {
