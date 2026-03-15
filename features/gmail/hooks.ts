@@ -53,7 +53,7 @@ export const useThreads = (
 ) =>
   useInfiniteQuery({
     queryKey: gmailKeys.threads(accountId, labelIds, 'recent'),
-    queryFn: ({ pageParam = 0 }) =>
+    queryFn: ({ pageParam }: { pageParam: number }) =>
       getThreadsPaginated(accountId, { labelIds, sortMode: 'recent', limit: PAGE_SIZE, offset: pageParam }),
     initialPageParam: 0,
     getNextPageParam: (lastPage, _allPages, lastPageParam) =>
