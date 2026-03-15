@@ -39,7 +39,7 @@ function getState(provider: string): ThrottleState {
 
 // --- Helpers ---
 
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+export const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const jitter = () => Math.random() * 500;
 
 // --- Public API ---
@@ -78,6 +78,10 @@ export function clearCooldown(provider = 'gmail'): void {
   const state = getState(provider);
   state.cooldownUntil = null;
   state.retryAfterMs = null;
+}
+
+export function clearAllCooldowns(): void {
+  throttleStates.clear();
 }
 
 /**

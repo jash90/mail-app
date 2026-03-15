@@ -103,7 +103,7 @@ export default function ListScreen() {
         },
       ]);
     },
-    [trashThreadMutation],
+    [trashThreadMutation.mutate],
   );
 
   const handleThread = useCallback(

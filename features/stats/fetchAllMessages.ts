@@ -7,12 +7,11 @@ import { parseMultipartResponseWithStatus } from '@/features/gmail/helpers/batch
 import { mapGmailThreadToEmailThread } from '@/features/gmail/threads';
 import type { GmailMessage, GmailThread } from '@/features/gmail/types';
 import type { EmailThread } from '@/types';
+import { delay } from '@/lib/rateLimiter';
 import type { StatMessage, StatsProgress } from './types';
 
 const BATCH_SIZE = 25;
 const MAX_RETRY_ROUNDS = 5;
-
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function listAllThreadIds(
   labelIds: string[] = ['INBOX', 'SENT'],
@@ -175,7 +174,7 @@ async function fetchBatch(
           );
         }
       }
-    } catch { /* non-blocking */ }
+    } catch (err) { console.warn('[Stats] upsert failed:', err); }
 
     onBatch?.(batchThreads, batchMessages);
   }
@@ -206,8 +205,8 @@ async function processBatchQueue(
       allThreads.push(...result.threads);
       retryIds.push(...result.retryIds);
       skippedCount += result.skippedCount;
-    } catch {
-      console.warn(`Batch ${i / BATCH_SIZE + 1} failed (${phase}), queuing ${batchIds.length} for retry`);
+    } catch (err) {
+      console.warn(`Batch ${i / BATCH_SIZE + 1} failed (${phase}), queuing ${batchIds.length} for retry`, err);
       retryIds.push(...batchIds);
     }
 

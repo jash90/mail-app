@@ -37,16 +37,22 @@ export default function RootLayout() {
   useEffect(() => {
     if (!migrationSuccess) return;
 
+    const abortController = new AbortController();
+
     (async () => {
       const tokens = await getStoredTokens('gmail');
       if (tokens?.user?.id) {
         setUser(tokens?.user);
         setTimeout(() => router.replace('/(tabs)/list'), 200);
-        prefetchSummaries(tokens.user.id).catch(() => {});
+        prefetchSummaries(tokens.user.id, abortController.signal).catch(
+          () => {},
+        );
       } else {
         setTimeout(() => router.replace('/login'), 200);
       }
     })();
+
+    return () => abortController.abort();
   }, [migrationSuccess]);
 
   if (migrationError) {

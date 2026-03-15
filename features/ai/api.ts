@@ -127,14 +127,15 @@ export async function summarizeEmail(threadId: string, subject: string, snippet:
   return summary;
 }
 
-export async function prefetchSummaries(accountId: string): Promise<void> {
+export async function prefetchSummaries(accountId: string, signal?: AbortSignal): Promise<void> {
   const threads = getUnreadThreads(accountId, 20);
 
   for (const t of threads) {
+    if (signal?.aborted) return;
     const cached = getSummaryCache(t.id);
     if (cached) continue;
     try {
-      await summarizeEmail(t.id, t.subject, t.snippet);
+      await summarizeEmail(t.id, t.subject, t.snippet, signal);
     } catch {
       // silently skip failed summaries during prefetch
     }

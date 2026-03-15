@@ -1,6 +1,7 @@
 import { GMAIL_API } from '@/config/constants';
 import { getStoredTokens, isTokenExpired, refreshGmailTokens, resetTokens } from '@/features/auth/oauthService';
 import {
+  clearAllCooldowns,
   executeWithRetry,
   waitForCooldown,
   updateThrottleState,
@@ -17,6 +18,7 @@ export const clearTokenCache = () => {
 
 const handleAuthFailure = () => {
   cachedToken = null;
+  clearAllCooldowns();
   resetTokens();
   useAuthStore.getState().clearUser();
 };
