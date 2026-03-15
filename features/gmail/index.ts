@@ -30,7 +30,6 @@ export {
   useTrashThread,
   useDeleteThread,
 } from './hooks';
-export { parseMultipartResponse } from './helpers/batch';
 export type {
   GmailThread,
   GmailMessage,

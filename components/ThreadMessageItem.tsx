@@ -30,7 +30,12 @@ export const ThreadMessageItem = memo(function ThreadMessageItem({
       try {
         const { height: h } = JSON.parse(event.nativeEvent.data);
         onHeightChange(msg.id, h);
-      } catch {}
+      } catch (e) {
+        console.warn(
+          '[ThreadMessageItem] Failed to parse WebView height message:',
+          e,
+        );
+      }
     },
     [msg.id, onHeightChange],
   );

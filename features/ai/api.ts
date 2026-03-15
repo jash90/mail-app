@@ -1,9 +1,9 @@
 import { db } from '@/db/client';
 import { getUnreadThreads } from '@/db/repositories/threads';
 import { summaryCache } from '@/db/schema';
-import { GoogleUser } from '@/store/authStore';
 import { and, eq, gt } from 'drizzle-orm';
-import type { ChatMessage } from './types';
+import type { ChatMessage, EmailContext } from './types';
+import { formatContext } from './types';
 
 const ZAI_API_KEY = process.env.EXPO_PUBLIC_ZAI_API_KEY ?? '';
 if (__DEV__ && !ZAI_API_KEY) {
@@ -77,24 +77,6 @@ const SYSTEM_PROMPT = `You are an AI email assistant. Write professional, concis
 - Format the email with proper structure: greeting, body paragraphs, closing, and signature
 - Use line breaks between sections for readability
 - Keep paragraphs short (2-3 sentences max)`;
-
-interface EmailContext {
-  from?: { email: string; name: string } | null;
-  user?: GoogleUser | null;
-}
-
-function formatContext(ctx: EmailContext): string {
-  const lines: string[] = [];
-  if (ctx.from?.name || ctx.from?.email) {
-    lines.push(`Recipient: ${ctx.from.name || ''} <${ctx.from.email}>`);
-  }
-  if (ctx.user?.givenName || ctx.user?.familyName) {
-    lines.push(
-      `Sender: ${ctx.user.givenName ?? ''} ${ctx.user.familyName ?? ''}`,
-    );
-  }
-  return lines.join('\n');
-}
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 

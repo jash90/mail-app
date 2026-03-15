@@ -24,6 +24,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { withUniwind } from 'uniwind';
 
 const StyledSafeAreaView = withUniwind(SafeAreaView);
+const scrollContentStyle = { paddingBottom: 120 } as const;
 
 export default function ThreadScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -129,8 +130,9 @@ export default function ThreadScreen() {
       );
       if (controller.signal.aborted) return;
       setMessage(result);
-    } catch {
+    } catch (err) {
       if (controller.signal.aborted) return;
+      console.warn('[ThreadScreen] AI reply generation failed:', err);
       Alert.alert('Error', 'Failed to generate AI reply.');
     } finally {
       if (!controller.signal.aborted) {
@@ -188,7 +190,7 @@ export default function ThreadScreen() {
 
       <ScrollView
         className="w-full flex-1 py-3"
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={scrollContentStyle}
         showsVerticalScrollIndicator={false}
       >
         {messages?.map((msg) => (

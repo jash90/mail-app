@@ -43,6 +43,9 @@ const useGmailMutation = <TVariables>(
         queryClient.invalidateQueries({ queryKey: key }),
       );
     },
+    onError: (error: Error) => {
+      console.warn('[useGmailMutation] Gmail operation failed:', error.message);
+    },
   });
 };
 

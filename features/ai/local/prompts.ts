@@ -1,4 +1,5 @@
-import type { ChatMessage } from '../types';
+import type { ChatMessage, EmailContext } from '../types';
+import { formatContext } from '../types';
 
 export function buildSummaryMessages(
   subject: string,
@@ -26,23 +27,7 @@ const LOCAL_SYSTEM_PROMPT = `You are an email assistant. Write professional, con
 - Only write the email body, no subject
 - Keep it short and professional`;
 
-interface EmailContext {
-  from?: { email: string; name: string } | null;
-  user?: { givenName?: string; familyName?: string } | null;
-}
-
-function formatContext(ctx: EmailContext): string {
-  const lines: string[] = [];
-  if (ctx.from?.name || ctx.from?.email) {
-    lines.push(`To: ${ctx.from.name || ''} <${ctx.from.email}>`);
-  }
-  if (ctx.user?.givenName || ctx.user?.familyName) {
-    lines.push(
-      `From: ${ctx.user.givenName ?? ''} ${ctx.user.familyName ?? ''}`,
-    );
-  }
-  return lines.join('\n');
-}
+const contextLabels = { recipient: 'To', sender: 'From' };
 
 export function buildEmailMessages(
   prompt: string,
@@ -50,7 +35,7 @@ export function buildEmailMessages(
   from: EmailContext['from'],
   user: EmailContext['user'],
 ): ChatMessage[] {
-  const context = formatContext({ from, user });
+  const context = formatContext({ from, user }, contextLabels);
   const userMsg = [
     subject ? `Subject: ${subject}` : '',
     context,
@@ -72,7 +57,7 @@ export function buildReplyMessages(
   from: EmailContext['from'],
   user: EmailContext['user'],
 ): ChatMessage[] {
-  const context = formatContext({ from, user });
+  const context = formatContext({ from, user }, contextLabels);
   const userMsg = [
     subject ? `Subject: ${subject}` : '',
     context,
