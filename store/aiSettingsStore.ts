@@ -52,11 +52,10 @@ export const useAiSettingsStore = create<AiSettingsState>()(
     {
       name: 'ai-settings',
       storage: secureStorage,
-      partialize: (state) =>
-        ({
-          provider: state.provider,
-          selectedModelId: state.selectedModelId,
-        }) as AiSettingsState,
+      partialize: (state) => ({
+        provider: state.provider,
+        selectedModelId: state.selectedModelId,
+      }),
     },
   ),
 );

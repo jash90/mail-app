@@ -3,17 +3,15 @@ import { getUnreadThreads } from '@/db/repositories/threads';
 import { summaryCache } from '@/db/schema';
 import { GoogleUser } from '@/store/authStore';
 import { and, eq, gt } from 'drizzle-orm';
+import type { ChatMessage } from './types';
 
 const ZAI_API_KEY = process.env.EXPO_PUBLIC_ZAI_API_KEY ?? '';
 if (__DEV__ && !ZAI_API_KEY) {
-  console.warn('[AI] EXPO_PUBLIC_ZAI_API_KEY is not set — AI features will fail');
+  console.warn(
+    '[AI] EXPO_PUBLIC_ZAI_API_KEY is not set — AI features will fail',
+  );
 }
 const ZAI_BASE_URL = 'https://api.z.ai/api/coding/paas/v4';
-
-interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-}
 
 interface ZaiResponse {
   choices: Array<{
@@ -21,7 +19,10 @@ interface ZaiResponse {
   }>;
 }
 
-export async function chatCompletion(messages: ChatMessage[], signal?: AbortSignal): Promise<string> {
+export async function chatCompletion(
+  messages: ChatMessage[],
+  signal?: AbortSignal,
+): Promise<string> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30_000);
 
@@ -53,7 +54,9 @@ export async function chatCompletion(messages: ChatMessage[], signal?: AbortSign
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || `Z.AI API error: ${response.status}`);
+      throw new Error(
+        error.error?.message || `Z.AI API error: ${response.status}`,
+      );
     }
 
     const data: ZaiResponse = await response.json();
@@ -73,8 +76,7 @@ const SYSTEM_PROMPT = `You are an AI email assistant. Write professional, concis
 - Do not wrap in quotes or add metadata
 - Format the email with proper structure: greeting, body paragraphs, closing, and signature
 - Use line breaks between sections for readability
-- Keep paragraphs short (2-3 sentences max)`; 
-
+- Keep paragraphs short (2-3 sentences max)`;
 
 interface EmailContext {
   from?: { email: string; name: string } | null;
@@ -87,7 +89,9 @@ function formatContext(ctx: EmailContext): string {
     lines.push(`Recipient: ${ctx.from.name || ''} <${ctx.from.email}>`);
   }
   if (ctx.user?.givenName || ctx.user?.familyName) {
-    lines.push(`Sender: ${ctx.user.givenName ?? ''} ${ctx.user.familyName ?? ''}`);
+    lines.push(
+      `Sender: ${ctx.user.givenName ?? ''} ${ctx.user.familyName ?? ''}`,
+    );
   }
   return lines.join('\n');
 }
@@ -115,7 +119,12 @@ function setSummaryCache(key: string, summary: string): void {
     .run();
 }
 
-export async function summarizeEmail(threadId: string, subject: string, snippet: string, signal?: AbortSignal): Promise<string> {
+export async function summarizeEmail(
+  threadId: string,
+  subject: string,
+  snippet: string,
+  signal?: AbortSignal,
+): Promise<string> {
   const cached = getSummaryCache(threadId);
   if (cached) return cached;
 
@@ -126,20 +135,26 @@ export async function summarizeEmail(threadId: string, subject: string, snippet:
     .filter(Boolean)
     .join('\n');
 
-  const summary = await chatCompletion([
-    {
-      role: 'system',
-      content:
-        'Summarize the email in 5 sentences. Match the language of the email content. Be concise and informative.',
-    },
-    { role: 'user', content: userMsg },
-  ], signal);
+  const summary = await chatCompletion(
+    [
+      {
+        role: 'system',
+        content:
+          'Summarize the email in 5 sentences. Match the language of the email content. Be concise and informative.',
+      },
+      { role: 'user', content: userMsg },
+    ],
+    signal,
+  );
 
   setSummaryCache(threadId, summary);
   return summary;
 }
 
-export async function prefetchSummaries(accountId: string, signal?: AbortSignal): Promise<void> {
+export async function prefetchSummaries(
+  accountId: string,
+  signal?: AbortSignal,
+): Promise<void> {
   const threads = getUnreadThreads(accountId, 20);
   let consecutiveFailures = 0;
 
@@ -151,8 +166,15 @@ export async function prefetchSummaries(accountId: string, signal?: AbortSignal)
       await summarizeEmail(t.id, t.subject, t.snippet, signal);
       consecutiveFailures = 0;
     } catch (err) {
-      if (signal?.aborted || (err instanceof Error && err.name === 'AbortError')) return;
-      console.warn(`[prefetchSummaries] Failed thread ${t.id}:`, err instanceof Error ? err.message : err);
+      if (
+        signal?.aborted ||
+        (err instanceof Error && err.name === 'AbortError')
+      )
+        return;
+      console.warn(
+        `[prefetchSummaries] Failed thread ${t.id}:`,
+        err instanceof Error ? err.message : err,
+      );
       consecutiveFailures++;
       if (consecutiveFailures >= 3) return;
     }
@@ -175,10 +197,13 @@ export async function generateEmail(
     .filter(Boolean)
     .join('\n\n');
 
-  return chatCompletion([
-    { role: 'system', content: SYSTEM_PROMPT },
-    { role: 'user', content: userMsg },
-  ], signal);
+  return chatCompletion(
+    [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: userMsg },
+    ],
+    signal,
+  );
 }
 
 export async function generateReply(
@@ -201,8 +226,11 @@ export async function generateReply(
     .filter(Boolean)
     .join('\n\n');
 
-  return chatCompletion([
-    { role: 'system', content: SYSTEM_PROMPT },
-    { role: 'user', content: userMsg },
-  ], signal);
+  return chatCompletion(
+    [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: userMsg },
+    ],
+    signal,
+  );
 }

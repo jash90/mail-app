@@ -14,6 +14,7 @@ import { useAuthStore } from '@/store/authStore';
 import {
   useAiSettingsStore,
   type AiProviderType,
+  type ModelStatus,
 } from '@/store/aiSettingsStore';
 import { resetTokens } from '@/features/auth/oauthService';
 import { clearTokenCache } from '@/features/gmail';
@@ -69,11 +70,13 @@ export default function SettingsScreen() {
     router.replace('/');
   };
 
+  const setModelStatus = useAiSettingsStore((s) => s.setModelStatus);
+
   const handleDeleteModel = async () => {
     const model = getModelById(selectedModelId);
     if (model) {
       await deleteModelFiles(model);
-      useAiSettingsStore.getState().setModelStatus('not-downloaded');
+      setModelStatus('not-downloaded');
       setWantsDownload(false);
     }
   };
@@ -184,7 +187,7 @@ function ModelCardAction({
   onDownload,
   onDelete,
 }: {
-  status: string;
+  status: ModelStatus;
   downloadProgress: number;
   onDownload: () => void;
   onDelete: () => void;
