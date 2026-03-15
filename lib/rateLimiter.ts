@@ -40,6 +40,26 @@ function getState(provider: string): ThrottleState {
 // --- Helpers ---
 
 export const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function abortableDelay(ms: number, signal?: AbortSignal): Promise<void> {
+  if (!signal) return delay(ms);
+  if (signal.aborted)
+    return Promise.reject(
+      new DOMException('The operation was aborted.', 'AbortError'),
+    );
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException('The operation was aborted.', 'AbortError'));
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
 const jitter = () => Math.random() * 500;
 
 // --- Public API ---
@@ -90,15 +110,24 @@ export function clearAllCooldowns(): void {
  */
 export async function executeWithRetry<T>(
   fn: () => Promise<T>,
-  opts?: { maxRetries?: number; provider?: string },
+  opts?: { maxRetries?: number; provider?: string; signal?: AbortSignal },
 ): Promise<T> {
   const maxRetries = opts?.maxRetries ?? RATE_LIMIT.maxRetries;
   const provider = opts?.provider ?? 'gmail';
+  const signal = opts?.signal;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (signal?.aborted) {
+      throw new DOMException('The operation was aborted.', 'AbortError');
+    }
+
     try {
       return await fn();
     } catch (error) {
+      if (signal?.aborted) {
+        throw new DOMException('The operation was aborted.', 'AbortError');
+      }
+
       if (error instanceof NonRetryableError || attempt === maxRetries) {
         throw error;
       }
@@ -120,8 +149,10 @@ export async function executeWithRetry<T>(
       const state = getState(provider);
       state.cooldownUntil = Date.now() + delayMs;
 
-      console.warn(`[RateLimiter] Retry ${attempt + 1}/${maxRetries} after ${Math.round(delayMs)}ms: ${error.message}`);
-      await delay(delayMs);
+      console.warn(
+        `[RateLimiter] Retry ${attempt + 1}/${maxRetries} after ${Math.round(delayMs)}ms: ${error.message}`,
+      );
+      await abortableDelay(delayMs, signal);
     }
   }
 

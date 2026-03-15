@@ -129,6 +129,7 @@ export async function summarizeEmail(threadId: string, subject: string, snippet:
 
 export async function prefetchSummaries(accountId: string, signal?: AbortSignal): Promise<void> {
   const threads = getUnreadThreads(accountId, 20);
+  let consecutiveFailures = 0;
 
   for (const t of threads) {
     if (signal?.aborted) return;
@@ -136,8 +137,10 @@ export async function prefetchSummaries(accountId: string, signal?: AbortSignal)
     if (cached) continue;
     try {
       await summarizeEmail(t.id, t.subject, t.snippet, signal);
+      consecutiveFailures = 0;
     } catch {
-      // silently skip failed summaries during prefetch
+      consecutiveFailures++;
+      if (consecutiveFailures >= 3) return;
     }
   }
 }

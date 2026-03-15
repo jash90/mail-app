@@ -3,15 +3,12 @@ global.Buffer = global.Buffer || Buffer;
 
 import '../global.css';
 
-import { prefetchSummaries } from '@/features/ai/api';
-import { getStoredTokens } from '@/features/auth/oauthService';
 import { useAuthStore } from '@/store/authStore';
 import { db } from '@/db/client';
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import migrations from '../drizzle/migrations';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Stack, useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { Stack } from 'expo-router';
 import { Text, View } from 'react-native';
 import 'react-native-reanimated';
 
@@ -30,31 +27,7 @@ export default function RootLayout() {
     db,
     migrations,
   );
-  const router = useRouter();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const setUser = useAuthStore((s) => s.setUser);
-
-  useEffect(() => {
-    if (!migrationSuccess) return;
-
-    const abortController = new AbortController();
-
-    (async () => {
-      const tokens = await getStoredTokens('gmail');
-      if (tokens?.user?.id) {
-        setUser(tokens?.user);
-        setTimeout(() => router.replace('/(tabs)/list'), 200);
-        prefetchSummaries(tokens.user.id, abortController.signal).catch(
-          () => {},
-        );
-      } else {
-        setTimeout(() => router.replace('/login'), 200);
-      }
-    })();
-
-    return () => abortController.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- router and setUser are stable refs
-  }, [migrationSuccess]);
 
   if (migrationError) {
     return (

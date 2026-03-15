@@ -1,8 +1,16 @@
 import { GMAIL_API } from '@/config/constants';
 import { upsertStatMessages } from '@/db/repositories/messages';
-import { filterStaleProviderThreadIds, purgeThreadsNotInList, upsertThreads } from '@/db/repositories/threads';
+import {
+  filterStaleProviderThreadIds,
+  purgeThreadsNotInList,
+  upsertThreads,
+} from '@/db/repositories/threads';
 import { apiRequestRaw, gmailRequest } from '@/features/gmail/api';
-import { getHeader, parseEmailAddress, parseEmailAddressList } from '@/features/gmail/helpers';
+import {
+  getHeader,
+  parseEmailAddress,
+  parseEmailAddressList,
+} from '@/features/gmail/helpers';
 import { parseMultipartResponseWithStatus } from '@/features/gmail/helpers/batch';
 import { mapGmailThreadToEmailThread } from '@/features/gmail/threads';
 import type { GmailMessage, GmailThread } from '@/features/gmail/types';
@@ -12,6 +20,7 @@ import type { StatMessage, StatsProgress } from './types';
 
 const BATCH_SIZE = 25;
 const MAX_RETRY_ROUNDS = 5;
+const GMAIL_ID_RE = /^[0-9a-f]+$/i;
 
 async function listAllThreadIds(
   labelIds: string[] = ['INBOX', 'SENT'],
@@ -52,8 +61,8 @@ function extractStatMessage(msg: GmailMessage): StatMessage {
   const from = parseEmailAddress(fromRaw).email.toLowerCase();
 
   const extractEmails = (header: string): string[] =>
-    parseEmailAddressList(getHeader(headers, header) || '').map(
-      (p) => p.email.toLowerCase(),
+    parseEmailAddressList(getHeader(headers, header) || '').map((p) =>
+      p.email.toLowerCase(),
     );
 
   return {
@@ -86,11 +95,25 @@ async function fetchBatch(
   batchIds: string[],
   batchIndex: number,
   onBatch?: (threads: EmailThread[], messages: StatMessage[][]) => void,
-): Promise<{ threads: EmailThread[]; retryIds: string[]; skippedCount: number }> {
+): Promise<{
+  threads: EmailThread[];
+  retryIds: string[];
+  skippedCount: number;
+}> {
+  const validIds = batchIds.filter((id) => {
+    if (GMAIL_ID_RE.test(id)) return true;
+    console.warn(`[Batch] Skipping invalid thread ID: ${id}`);
+    return false;
+  });
+  const invalidCount = batchIds.length - validIds.length;
+  if (validIds.length === 0) {
+    return { threads: [], retryIds: [], skippedCount: invalidCount };
+  }
+
   const boundary = `batch_stats_${Date.now()}_${batchIndex}`;
 
   const body =
-    batchIds
+    validIds
       .map(
         (id) =>
           `--${boundary}\r\nContent-Type: application/http\r\nContent-ID: <${id}>\r\n\r\n` +
@@ -111,7 +134,10 @@ async function fetchBatch(
     response.headers.get('content-type')?.match(/boundary=(.+)/)?.[1] ??
     boundary;
 
-  const parts = parseMultipartResponseWithStatus(responseText, responseBoundary);
+  const parts = parseMultipartResponseWithStatus(
+    responseText,
+    responseBoundary,
+  );
 
   const batchThreads: EmailThread[] = [];
   const batchMessages: StatMessage[][] = [];
@@ -121,7 +147,9 @@ async function fetchBatch(
   for (const part of parts) {
     // Rate-limited, quota exceeded, or server error → retry
     if (part.status === 429 || part.status === 403 || part.status >= 500) {
-      console.warn(`[Batch] Part ${part.contentId ?? '?'} got ${part.status} — queuing for retry`);
+      console.warn(
+        `[Batch] Part ${part.contentId ?? '?'} got ${part.status} — queuing for retry`,
+      );
       if (part.contentId) {
         retryIds.push(part.contentId);
       }
@@ -174,12 +202,14 @@ async function fetchBatch(
           );
         }
       }
-    } catch (err) { console.warn('[Stats] upsert failed:', err); }
+    } catch (err) {
+      console.warn('[Stats] upsert failed:', err);
+    }
 
     onBatch?.(batchThreads, batchMessages);
   }
 
-  return { threads: batchThreads, retryIds, skippedCount };
+  return { threads: batchThreads, retryIds, skippedCount: skippedCount + invalidCount };
 }
 
 /** Process a queue of thread IDs in BATCH_SIZE chunks. Returns IDs that failed and need retry. */
@@ -206,7 +236,10 @@ async function processBatchQueue(
       retryIds.push(...result.retryIds);
       skippedCount += result.skippedCount;
     } catch (err) {
-      console.warn(`Batch ${i / BATCH_SIZE + 1} failed (${phase}), queuing ${batchIds.length} for retry`, err);
+      console.warn(
+        `Batch ${i / BATCH_SIZE + 1} failed (${phase}), queuing ${batchIds.length} for retry`,
+        err,
+      );
       retryIds.push(...batchIds);
     }
 
@@ -235,27 +268,51 @@ export async function fetchAllMessages(
   // Filter out threads that are fresh in the local DB (updated < 24h ago)
   const staleIds = filterStaleProviderThreadIds(accountId, allThreadIds);
   const cachedCount = totalListedCount - staleIds.length;
-  console.log(`[Stats] cachedCount = ${cachedCount}, staleIds = ${staleIds.length}`);
+  console.log(
+    `[Stats] cachedCount = ${cachedCount}, staleIds = ${staleIds.length}`,
+  );
 
   const allThreads: EmailThread[] = [];
   let { retryIds: retryQueue, skippedCount: totalSkipped } =
-    await processBatchQueue(accountId, staleIds, 'loading', allThreads, 1000, onProgress, onBatch);
+    await processBatchQueue(
+      accountId,
+      staleIds,
+      'loading',
+      allThreads,
+      1000,
+      onProgress,
+      onBatch,
+    );
 
   // Retry rounds with exponential backoff
-  for (let round = 0; round < MAX_RETRY_ROUNDS && retryQueue.length > 0; round++) {
+  for (
+    let round = 0;
+    round < MAX_RETRY_ROUNDS && retryQueue.length > 0;
+    round++
+  ) {
     const backoffMs = 4000 * 2 ** round;
-    console.log(`[Stats] Retry round ${round + 1}/${MAX_RETRY_ROUNDS}: ${retryQueue.length} IDs, backoff ${backoffMs}ms`);
+    console.log(
+      `[Stats] Retry round ${round + 1}/${MAX_RETRY_ROUNDS}: ${retryQueue.length} IDs, backoff ${backoffMs}ms`,
+    );
     await delay(backoffMs); // 4s, 8s, 16s
 
     const result = await processBatchQueue(
-      accountId, retryQueue, 'retrying', allThreads, 1000, onProgress, onBatch,
+      accountId,
+      retryQueue,
+      'retrying',
+      allThreads,
+      1000,
+      onProgress,
+      onBatch,
     );
     retryQueue = result.retryIds;
     totalSkipped += result.skippedCount;
   }
 
   const failedCount = retryQueue.length;
-  console.log(`[Stats] DONE: totalListed=${totalListedCount} cached=${cachedCount} purged=${purgedCount} loaded=${allThreads.length} failed=${failedCount} skipped=${totalSkipped}`);
+  console.log(
+    `[Stats] DONE: totalListed=${totalListedCount} cached=${cachedCount} purged=${purgedCount} loaded=${allThreads.length} failed=${failedCount} skipped=${totalSkipped}`,
+  );
   if (failedCount > 0) {
     console.warn(`${failedCount} threads failed after all retry rounds`);
   }

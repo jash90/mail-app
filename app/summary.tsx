@@ -33,7 +33,7 @@ const SummaryItemRow = memo(function SummaryItemRow({
 }: {
   item: SummaryItem;
   index: number;
-  onRetry: (index: number) => void;
+  onRetry: (index: number, item: SummaryItem) => void;
 }) {
   return (
     <View className="mb-3 rounded-xl bg-zinc-900 p-4">
@@ -58,7 +58,7 @@ const SummaryItemRow = memo(function SummaryItemRow({
             Error: {item.error}
           </Text>
           <TouchableOpacity
-            onPress={() => onRetry(index)}
+            onPress={() => onRetry(index, item)}
             className="rounded-lg bg-indigo-600 px-3 py-1.5"
           >
             <Text className="text-xs font-semibold text-white">Retry</Text>
@@ -150,7 +150,7 @@ export default function SummaryScreen() {
     };
   }, [accountId]);
 
-  const retrySummary = useCallback(async (index: number) => {
+  const retrySummary = useCallback(async (index: number, item: SummaryItem) => {
     setItems((prev) =>
       prev.map((it, idx) =>
         idx === index ? { ...it, loading: true, error: null } : it,
@@ -160,43 +160,34 @@ export default function SummaryScreen() {
     const abort = new AbortController();
     retryAbortRef.current = abort;
 
-    // Read the item from state at call time
-    setItems((prev) => {
-      const item = prev[index];
-      (async () => {
-        try {
-          const summary = await summarizeEmail(
-            item.thread.id,
-            item.thread.subject,
-            item.thread.snippet,
-            abort.signal,
-          );
-          if (abort.signal.aborted) return;
-          setItems((p) =>
-            p.map((it, idx) =>
-              idx === index ? { ...it, summary, loading: false } : it,
-            ),
-          );
-        } catch (err) {
-          if (abort.signal.aborted) return;
-          console.warn(
-            `[SummaryScreen] Retry failed for thread ${item.thread.id}`,
-          );
-          setItems((p) =>
-            p.map((it, idx) =>
-              idx === index
-                ? {
-                    ...it,
-                    loading: false,
-                    error: err instanceof Error ? err.message : 'Unknown error',
-                  }
-                : it,
-            ),
-          );
-        }
-      })();
-      return prev;
-    });
+    try {
+      const summary = await summarizeEmail(
+        item.thread.id,
+        item.thread.subject,
+        item.thread.snippet,
+        abort.signal,
+      );
+      if (abort.signal.aborted) return;
+      setItems((p) =>
+        p.map((it, idx) =>
+          idx === index ? { ...it, summary, loading: false } : it,
+        ),
+      );
+    } catch (err) {
+      if (abort.signal.aborted) return;
+      console.warn(`[SummaryScreen] Retry failed for thread ${item.thread.id}`);
+      setItems((p) =>
+        p.map((it, idx) =>
+          idx === index
+            ? {
+                ...it,
+                loading: false,
+                error: err instanceof Error ? err.message : 'Unknown error',
+              }
+            : it,
+        ),
+      );
+    }
   }, []);
 
   const renderItem = useCallback(

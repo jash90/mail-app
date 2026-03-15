@@ -1,5 +1,6 @@
 import EmailComponent from '@/components/EmailComponent';
 import { ListSkeleton } from '@/components/skeletons';
+import { prefetchSummaries } from '@/features/ai/api';
 import {
   useThreads,
   useSync,
@@ -52,12 +53,23 @@ export default function ListScreen() {
   const syncNextPage = useSyncNextPage(accountId);
   const isRefreshing = sync.isPending;
 
+  const prefetchAbortRef = useRef<AbortController | null>(null);
+  useEffect(() => {
+    return () => prefetchAbortRef.current?.abort();
+  }, []);
+
   const syncMutate = sync.mutate;
   const handleRefresh = useCallback(() => {
     syncMutate(undefined, {
-      onSuccess: () => refetch(),
+      onSuccess: () => {
+        refetch();
+        prefetchAbortRef.current?.abort();
+        const controller = new AbortController();
+        prefetchAbortRef.current = controller;
+        prefetchSummaries(accountId, controller.signal).catch(() => {});
+      },
     });
-  }, [syncMutate, refetch]);
+  }, [syncMutate, refetch, accountId]);
 
   const syncNextPagePendingRef = useRef(syncNextPage.isPending);
   syncNextPagePendingRef.current = syncNextPage.isPending;
@@ -88,6 +100,7 @@ export default function ListScreen() {
   };
 
   const trashThreadMutation = useTrashThread(accountId);
+  const trashMutate = trashThreadMutation.mutate;
 
   const handleDelete = useCallback(
     (thread: EmailThread) => {
@@ -100,11 +113,11 @@ export default function ListScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => trashThreadMutation.mutate(thread.id),
+          onPress: () => trashMutate(thread.id),
         },
       ]);
     },
-    [trashThreadMutation.mutate],
+    [trashMutate],
   );
 
   const handleThread = useCallback(

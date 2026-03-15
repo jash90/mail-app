@@ -315,48 +315,52 @@ function hydrateThreads(rows: (typeof threads.$inferSelect)[]): EmailThread[] {
 
   const threadIds = rows.map((r) => r.id);
 
-  // Batch fetch all participants for all threads (1 query)
-  const allParticipantRows = db
-    .select({
-      threadId: threadParticipants.threadId,
-      email: participants.email,
-      name: participants.name,
-      position: threadParticipants.position,
-    })
-    .from(threadParticipants)
-    .innerJoin(participants, eq(threadParticipants.participantId, participants.id))
-    .where(inArray(threadParticipants.threadId, threadIds))
-    .orderBy(asc(threadParticipants.position))
-    .all();
-
+  // Batch fetch all participants for all threads (chunked)
   const participantsByThread = new Map<string, EmailParticipant[]>();
-  for (const p of allParticipantRows) {
-    let list = participantsByThread.get(p.threadId);
-    if (!list) {
-      list = [];
-      participantsByThread.set(p.threadId, list);
+  for (const batch of chunk(threadIds, CHUNK_SIZE)) {
+    const batchRows = db
+      .select({
+        threadId: threadParticipants.threadId,
+        email: participants.email,
+        name: participants.name,
+        position: threadParticipants.position,
+      })
+      .from(threadParticipants)
+      .innerJoin(participants, eq(threadParticipants.participantId, participants.id))
+      .where(inArray(threadParticipants.threadId, batch))
+      .orderBy(asc(threadParticipants.position))
+      .all();
+
+    for (const p of batchRows) {
+      let list = participantsByThread.get(p.threadId);
+      if (!list) {
+        list = [];
+        participantsByThread.set(p.threadId, list);
+      }
+      list.push({ email: p.email, name: p.name });
     }
-    list.push({ email: p.email, name: p.name });
   }
 
-  // Batch fetch all labels for all threads (1 query)
-  const allLabelRows = db
-    .select({
-      threadId: threadLabels.threadId,
-      labelId: threadLabels.labelId,
-    })
-    .from(threadLabels)
-    .where(inArray(threadLabels.threadId, threadIds))
-    .all();
-
+  // Batch fetch all labels for all threads (chunked)
   const labelsByThread = new Map<string, string[]>();
-  for (const l of allLabelRows) {
-    let list = labelsByThread.get(l.threadId);
-    if (!list) {
-      list = [];
-      labelsByThread.set(l.threadId, list);
+  for (const batch of chunk(threadIds, CHUNK_SIZE)) {
+    const batchRows = db
+      .select({
+        threadId: threadLabels.threadId,
+        labelId: threadLabels.labelId,
+      })
+      .from(threadLabels)
+      .where(inArray(threadLabels.threadId, batch))
+      .all();
+
+    for (const l of batchRows) {
+      let list = labelsByThread.get(l.threadId);
+      if (!list) {
+        list = [];
+        labelsByThread.set(l.threadId, list);
+      }
+      list.push(l.labelId);
     }
-    list.push(l.labelId);
   }
 
   return rows.map((row) => ({
