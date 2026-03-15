@@ -5,6 +5,5 @@ export interface ChatMessage {
 
 export interface AiProvider {
   name: 'cloud' | 'local';
-  isAvailable(): Promise<boolean>;
   generate(messages: ChatMessage[]): Promise<string>;
 }

@@ -12,10 +12,6 @@ export function registerLocalGenerate(fn: GenerateFn | null) {
 export const localProvider: AiProvider = {
   name: 'local',
 
-  async isAvailable() {
-    return generateFn !== null;
-  },
-
   async generate(messages: ChatMessage[]): Promise<string> {
     if (!generateFn) {
       throw new Error('Local model not loaded');
