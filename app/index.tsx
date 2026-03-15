@@ -1,4 +1,4 @@
-import { getStoredTokens } from '@/features/auth/oauthService';
+import { getStoredTokens, isTokenExpired } from '@/features/auth/oauthService';
 import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
@@ -13,19 +13,24 @@ export default function IndexScreen() {
   const setUser = useAuthStore((s) => s.setUser);
 
   useEffect(() => {
+    let mounted = true;
     (async () => {
       try {
         const tokens = await getStoredTokens('gmail');
-        if (tokens?.user?.id) {
+        if (!mounted) return;
+        if (tokens?.user?.id && !isTokenExpired(tokens)) {
           setUser(tokens.user);
           router.replace('/(tabs)/list');
         } else {
           router.replace('/login');
         }
       } catch {
-        router.replace('/login');
+        if (mounted) router.replace('/login');
       }
     })();
+    return () => {
+      mounted = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- router and setUser are stable refs
   }, []);
 

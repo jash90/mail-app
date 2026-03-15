@@ -59,7 +59,7 @@ export default function ComposeScreen() {
 
   const handleSend = () => {
     send(
-      { to: [{ name: null, email: to }], subject, body },
+      { to: [{ name: toName || null, email: to }], subject, body },
       { onSuccess: () => router.back() },
     );
   };

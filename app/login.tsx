@@ -3,7 +3,7 @@ import { useAuthStore } from '@/store/authStore';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { withUniwind } from 'uniwind';
 
@@ -53,6 +53,7 @@ export default function LoginScreen() {
       }
     } catch (error: any) {
       console.error(error);
+      Alert.alert('Sign In Failed', error?.message ?? 'Something went wrong.');
     }
   };
 

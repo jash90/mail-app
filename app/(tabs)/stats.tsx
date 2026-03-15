@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ScrollView,
   Text,
@@ -35,6 +35,15 @@ export default function StatsScreen() {
   } = useEmailStats(accountId);
 
   const displayStats = fullStats ?? stats;
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [refetch]);
 
   useEffect(() => {
     if (stats && !fullStats && !isLoadingFull && !error) {
@@ -67,8 +76,8 @@ export default function StatsScreen() {
         contentContainerClassName="px-4 pb-8"
         refreshControl={
           <RefreshControl
-            refreshing={false}
-            onRefresh={refetch}
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
             tintColor="white"
           />
         }
