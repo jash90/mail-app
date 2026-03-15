@@ -17,6 +17,8 @@ import { withUniwind } from 'uniwind';
 
 const StyledSafeAreaView = withUniwind(SafeAreaView);
 
+const listContentStyle = { paddingHorizontal: 16, paddingBottom: 32 } as const;
+
 interface SummaryItem {
   thread: EmailThread;
   summary: string | null;
@@ -33,6 +35,7 @@ export default function SummaryScreen() {
 
   useEffect(() => {
     cancelledRef.current = false;
+    const abortController = new AbortController();
     const threads = getUnreadThreads(accountId, 20);
 
     if (threads.length === 0) {
@@ -74,17 +77,16 @@ export default function SummaryScreen() {
             ),
           );
         } catch (err) {
-          console.warn(`[SummaryScreen] Failed to summarize thread ${t.id}`);
-          console.log({ err })
           if (cancelledRef.current) break;
+          console.warn(`[SummaryScreen] Failed to summarize thread ${t.id}`);
           setItems((prev) =>
             prev.map((item, idx) =>
               idx === i
                 ? {
-                  ...item,
-                  loading: false,
-                  error: err instanceof Error ? err.message : 'Unknown error',
-                }
+                    ...item,
+                    loading: false,
+                    error: err instanceof Error ? err.message : 'Unknown error',
+                  }
                 : item,
             ),
           );
@@ -95,6 +97,7 @@ export default function SummaryScreen() {
 
     return () => {
       cancelledRef.current = true;
+      abortController.abort();
     };
   }, [accountId]);
 
@@ -122,10 +125,10 @@ export default function SummaryScreen() {
         prev.map((it, idx) =>
           idx === index
             ? {
-              ...it,
-              loading: false,
-              error: err instanceof Error ? err.message : 'Unknown error',
-            }
+                ...it,
+                loading: false,
+                error: err instanceof Error ? err.message : 'Unknown error',
+              }
             : it,
         ),
       );
@@ -158,15 +161,21 @@ export default function SummaryScreen() {
           <FlatList
             data={items}
             keyExtractor={(item) => item.thread.id}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
+            contentContainerStyle={listContentStyle}
             renderItem={({ item, index }) => (
               <View className="mb-3 rounded-xl bg-zinc-900 p-4">
-                <Text className="text-sm font-semibold text-indigo-400" numberOfLines={1}>
+                <Text
+                  className="text-sm font-semibold text-indigo-400"
+                  numberOfLines={1}
+                >
                   {item.thread.participants[0]?.name ||
                     item.thread.participants[0]?.email ||
                     'Unknown'}
                 </Text>
-                <Text className="mt-1 text-base font-medium text-white" numberOfLines={2}>
+                <Text
+                  className="mt-1 text-base font-medium text-white"
+                  numberOfLines={2}
+                >
                   {item.thread.subject}
                 </Text>
 
@@ -185,7 +194,9 @@ export default function SummaryScreen() {
                       onPress={() => retrySummary(index)}
                       className="rounded-lg bg-indigo-600 px-3 py-1.5"
                     >
-                      <Text className="text-xs font-semibold text-white">Retry</Text>
+                      <Text className="text-xs font-semibold text-white">
+                        Retry
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 ) : (

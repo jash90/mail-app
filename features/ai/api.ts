@@ -18,9 +18,14 @@ interface ZaiResponse {
   }>;
 }
 
-export async function chatCompletion(messages: ChatMessage[]): Promise<string> {
+export async function chatCompletion(messages: ChatMessage[], signal?: AbortSignal): Promise<string> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30_000);
+
+  // Link external signal to internal controller
+  if (signal) {
+    signal.addEventListener('abort', () => controller.abort(), { once: true });
+  }
 
   try {
     const response = await fetch(`${ZAI_BASE_URL}/chat/completions`, {
@@ -98,7 +103,7 @@ function setSummaryCache(key: string, summary: string): void {
     .run();
 }
 
-export async function summarizeEmail(threadId: string, subject: string, snippet: string): Promise<string> {
+export async function summarizeEmail(threadId: string, subject: string, snippet: string, signal?: AbortSignal): Promise<string> {
   const cached = getSummaryCache(threadId);
   if (cached) return cached;
 
@@ -116,7 +121,7 @@ export async function summarizeEmail(threadId: string, subject: string, snippet:
         'Summarize the email in 5 sentences. Match the language of the email content. Be concise and informative.',
     },
     { role: 'user', content: userMsg },
-  ]);
+  ], signal);
 
   setSummaryCache(threadId, summary);
   return summary;
