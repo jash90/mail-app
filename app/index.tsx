@@ -1,3 +1,7 @@
+import { getStoredTokens, isTokenExpired } from '@/features/auth/oauthService';
+import { useAuthStore } from '@/store/authStore';
+import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { withUniwind } from 'uniwind';
@@ -5,9 +9,34 @@ import { withUniwind } from 'uniwind';
 const StyledSafeAreaView = withUniwind(SafeAreaView);
 
 export default function IndexScreen() {
-    return (
-        <StyledSafeAreaView className="flex-1 items-center justify-center bg-black">
-            <ActivityIndicator size="large" color="white" />
-        </StyledSafeAreaView>
-    );
+  const router = useRouter();
+  const setUser = useAuthStore((s) => s.setUser);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const tokens = await getStoredTokens('gmail');
+        if (!mounted) return;
+        if (tokens?.user?.id && !isTokenExpired(tokens)) {
+          setUser(tokens.user);
+          router.replace('/(tabs)/list');
+        } else {
+          router.replace('/login');
+        }
+      } catch {
+        if (mounted) router.replace('/login');
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- router and setUser are stable refs
+  }, []);
+
+  return (
+    <StyledSafeAreaView className="flex-1 items-center justify-center bg-black">
+      <ActivityIndicator size="large" color="white" />
+    </StyledSafeAreaView>
+  );
 }

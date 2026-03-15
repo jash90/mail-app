@@ -8,16 +8,22 @@ interface Props {
   valueKey: 'totalCount' | 'receivedCount' | 'sentCount';
 }
 
-export default function ContactRankingList({ title, contacts, valueKey }: Props) {
+export default function ContactRankingList({
+  title,
+  contacts,
+  valueKey,
+}: Props) {
   if (contacts.length === 0) return null;
 
-  const maxValue = Math.max(...contacts.map((c) => c[valueKey] || c.totalCount));
+  const maxValue = Math.max(
+    ...contacts.map((c) => c[valueKey] ?? c.totalCount),
+  );
 
   return (
     <View className="mt-4">
       <Text className="mb-2 text-lg font-semibold text-white">{title}</Text>
       {contacts.slice(0, 7).map((contact) => {
-        const value = contact[valueKey] || contact.totalCount;
+        const value = contact[valueKey] ?? contact.totalCount;
         const barWidth = maxValue > 0 ? (value / maxValue) * 100 : 0;
         const displayName = contact.name || contact.email.split('@')[0];
 

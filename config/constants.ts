@@ -9,3 +9,9 @@ export const GMAIL_API = {
     historyList: 2,
   },
 };
+
+export const RATE_LIMIT = {
+  maxRetries: 5,
+  baseDelayMs: 1000,
+  maxDelayMs: 30_000,
+};

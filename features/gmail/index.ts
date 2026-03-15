@@ -17,6 +17,7 @@ export {
   useThreads,
   useContactImportance,
   useSync,
+  useSyncNextPage,
   useThread,
   useThreadMessages,
   useLabels,
