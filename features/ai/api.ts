@@ -1,10 +1,13 @@
 import { db } from '@/db/client';
 import { getUnreadThreads } from '@/db/repositories/threads';
 import { summaryCache } from '@/db/schema';
-import { GoogleUser } from "@/store/authStore";
+import { GoogleUser } from '@/store/authStore';
 import { and, eq, gt } from 'drizzle-orm';
 
 const ZAI_API_KEY = process.env.EXPO_PUBLIC_ZAI_API_KEY ?? '';
+if (__DEV__ && !ZAI_API_KEY) {
+  console.warn('[AI] EXPO_PUBLIC_ZAI_API_KEY is not set — AI features will fail');
+}
 const ZAI_BASE_URL = 'https://api.z.ai/api/coding/paas/v4';
 
 interface ChatMessage {
@@ -23,8 +26,13 @@ export async function chatCompletion(messages: ChatMessage[], signal?: AbortSign
   const timeout = setTimeout(() => controller.abort(), 30_000);
 
   // Link external signal to internal controller
+  const onAbort = () => controller.abort();
   if (signal) {
-    signal.addEventListener('abort', () => controller.abort(), { once: true });
+    if (signal.aborted) {
+      controller.abort();
+    } else {
+      signal.addEventListener('abort', onAbort, { once: true });
+    }
   }
 
   try {
@@ -49,9 +57,12 @@ export async function chatCompletion(messages: ChatMessage[], signal?: AbortSign
     }
 
     const data: ZaiResponse = await response.json();
-    return data.choices[0]?.message?.content ?? '';
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) throw new Error('Z.AI returned empty response');
+    return content;
   } finally {
     clearTimeout(timeout);
+    signal?.removeEventListener('abort', onAbort);
   }
 }
 
@@ -94,11 +105,12 @@ export function getSummaryCache(key: string): string | null {
 }
 
 function setSummaryCache(key: string, summary: string): void {
+  const now = new Date().toISOString();
   db.insert(summaryCache)
-    .values({ key, summary, createdAt: new Date().toISOString() })
+    .values({ key, summary, createdAt: now })
     .onConflictDoUpdate({
       target: summaryCache.key,
-      set: { summary, createdAt: new Date().toISOString() },
+      set: { summary, createdAt: now },
     })
     .run();
 }
@@ -138,7 +150,9 @@ export async function prefetchSummaries(accountId: string, signal?: AbortSignal)
     try {
       await summarizeEmail(t.id, t.subject, t.snippet, signal);
       consecutiveFailures = 0;
-    } catch {
+    } catch (err) {
+      if (signal?.aborted || (err instanceof Error && err.name === 'AbortError')) return;
+      console.warn(`[prefetchSummaries] Failed thread ${t.id}:`, err instanceof Error ? err.message : err);
       consecutiveFailures++;
       if (consecutiveFailures >= 3) return;
     }
@@ -150,6 +164,7 @@ export async function generateEmail(
   subject = '',
   from: EmailContext['from'],
   user: EmailContext['user'],
+  signal?: AbortSignal,
 ): Promise<string> {
   const context = formatContext({ from, user });
   const userMsg = [
@@ -163,7 +178,7 @@ export async function generateEmail(
   return chatCompletion([
     { role: 'system', content: SYSTEM_PROMPT },
     { role: 'user', content: userMsg },
-  ]);
+  ], signal);
 }
 
 export async function generateReply(
@@ -172,6 +187,7 @@ export async function generateReply(
   subject = '',
   from: EmailContext['from'],
   user: EmailContext['user'],
+  signal?: AbortSignal,
 ): Promise<string> {
   const context = formatContext({ from, user });
   const userMsg = [
@@ -188,5 +204,5 @@ export async function generateReply(
   return chatCompletion([
     { role: 'system', content: SYSTEM_PROMPT },
     { role: 'user', content: userMsg },
-  ]);
+  ], signal);
 }

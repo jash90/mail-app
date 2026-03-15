@@ -131,11 +131,40 @@ export function getThreadsPaginated(
 
   const hasLabels = labelIds && labelIds.length > 0;
   const threadRows = hasLabels
-    ? db.selectDistinct(threadColumns).from(threads)
-        .innerJoin(threadLabels, eq(threads.id, threadLabels.threadId))
-        .where(and(eq(threads.accountId, accountId), inArray(threadLabels.labelId, labelIds)))
-        .orderBy(orderBy, desc(threads.lastMessageAt))
-        .limit(limit).offset(offset).all()
+    ? (() => {
+        const results: (typeof threads.$inferSelect)[] = [];
+        for (const batch of chunk(labelIds, CHUNK_SIZE)) {
+          results.push(
+            ...db.selectDistinct(threadColumns).from(threads)
+              .innerJoin(threadLabels, eq(threads.id, threadLabels.threadId))
+              .where(and(eq(threads.accountId, accountId), inArray(threadLabels.labelId, batch)))
+              .all(),
+          );
+        }
+        // Deduplicate by thread ID (chunks may overlap on threads with multiple labels)
+        const seen = new Set<string>();
+        const deduped = results.filter((r) => {
+          if (seen.has(r.id)) return false;
+          seen.add(r.id);
+          return true;
+        });
+        // Re-sort — results from multiple chunks are interleaved
+        deduped.sort((a, b) => {
+          switch (sortMode) {
+            case 'recent':
+              return b.lastMessageAt.localeCompare(a.lastMessageAt);
+            case 'oldest':
+              return a.lastMessageAt.localeCompare(b.lastMessageAt);
+            case 'most_messages':
+              return b.messageCount - a.messageCount;
+            case 'unread_first':
+              return (a.isRead ? 1 : 0) - (b.isRead ? 1 : 0);
+            case 'starred_first':
+              return (b.isStarred ? 1 : 0) - (a.isStarred ? 1 : 0);
+          }
+        });
+        return deduped.slice(offset, offset + limit);
+      })()
     : db.select().from(threads)
         .where(eq(threads.accountId, accountId))
         .orderBy(orderBy, desc(threads.lastMessageAt))
@@ -144,7 +173,7 @@ export function getThreadsPaginated(
   return hydrateThreads(threadRows);
 }
 
-/** Get unread threads for an account, sorted by most recent. */
+/** Get unread Inbox threads for an account, sorted by most recent. */
 export function getUnreadThreads(accountId: string, limit = 20): EmailThread[] {
   const threadColumns = getThreadColumns();
 
@@ -201,11 +230,11 @@ export function updateThreadFlags(
     is_trashed: boolean;
   }>,
 ): void {
-  const set: Record<string, boolean> = {};
-  if (flags.is_read !== undefined) set.is_read = flags.is_read;
-  if (flags.is_starred !== undefined) set.is_starred = flags.is_starred;
-  if (flags.is_archived !== undefined) set.is_archived = flags.is_archived;
-  if (flags.is_trashed !== undefined) set.is_trashed = flags.is_trashed;
+  const set: Partial<typeof threads.$inferInsert> = {};
+  if (flags.is_read !== undefined) set.isRead = flags.is_read;
+  if (flags.is_starred !== undefined) set.isStarred = flags.is_starred;
+  if (flags.is_archived !== undefined) set.isArchived = flags.is_archived;
+  if (flags.is_trashed !== undefined) set.isTrashed = flags.is_trashed;
 
   if (Object.keys(set).length === 0) return;
 

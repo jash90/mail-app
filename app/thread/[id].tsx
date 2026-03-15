@@ -10,7 +10,7 @@ import { useAuthStore } from '@/store/authStore';
 import { ThreadMessageItem } from '@/components/ThreadMessageItem';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -87,24 +87,33 @@ export default function ThreadScreen() {
         data: {
           from: { name: user?.name ?? '', email: user?.email ?? '' },
           to: toList,
-          subject: `Re: ${thread!.subject}`,
+          subject: `Re: ${thread?.subject ?? ''}`,
           body: message,
         },
       },
       {
         onSuccess: () => setMessage(''),
-        onError: (error: any) => {
+        onError: (error: unknown) => {
           Alert.alert(
             'Error',
-            `Failed to send reply: ${error?.message ?? 'Please try again.'}`,
+            `Failed to send reply: ${error instanceof Error ? error.message : 'Please try again.'}`,
           );
         },
       },
     );
   };
 
+  const generateAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => generateAbortRef.current?.abort();
+  }, []);
+
   const handleAIReply = async () => {
     if (!messages?.length) return;
+    generateAbortRef.current?.abort();
+    const controller = new AbortController();
+    generateAbortRef.current = controller;
     setGeneratingAI(true);
     try {
       const lastMsg = messages[messages.length - 1];
@@ -116,12 +125,17 @@ export default function ThreadScreen() {
         thread?.subject,
         { email, name: name ?? '' },
         user,
+        controller.signal,
       );
+      if (controller.signal.aborted) return;
       setMessage(result);
     } catch {
+      if (controller.signal.aborted) return;
       Alert.alert('Error', 'Failed to generate AI reply.');
     } finally {
-      setGeneratingAI(false);
+      if (!controller.signal.aborted) {
+        setGeneratingAI(false);
+      }
     }
   };
 

@@ -51,9 +51,12 @@ export default function LoginScreen() {
         setUser(userPayload);
         router.replace('/(tabs)/list');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
-      Alert.alert('Sign In Failed', error?.message ?? 'Something went wrong.');
+      Alert.alert(
+        'Sign In Failed',
+        error instanceof Error ? error.message : 'Something went wrong.',
+      );
     }
   };
 
@@ -78,9 +81,7 @@ export default function LoginScreen() {
 
       <View className="h-[60px] items-center justify-end">
         <Text className="text-center text-sm text-white">
-          By continuing, you agree to our{' '}
-          <Text className="text-white underline">Terms of Service</Text> and{' '}
-          <Text className="text-white underline">Privacy Policy</Text>
+          By continuing, you agree to our Terms of Service and Privacy Policy
         </Text>
       </View>
     </StyledSafeAreaView>

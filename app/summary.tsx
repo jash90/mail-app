@@ -79,9 +79,10 @@ export default function SummaryScreen() {
   const [items, setItems] = useState<SummaryItem[]>([]);
   const [processed, setProcessed] = useState(0);
   const cancelledRef = useRef(false);
-  const retryAbortRef = useRef<AbortController | null>(null);
+  const retryAbortMapRef = useRef(new Map<number, AbortController>());
 
   useEffect(() => {
+    if (!accountId) return;
     cancelledRef.current = false;
     const abortController = new AbortController();
     const threads = getUnreadThreads(accountId, 20);
@@ -119,46 +120,46 @@ export default function SummaryScreen() {
             abortController.signal,
           );
           if (cancelledRef.current) break;
-          setItems((prev) =>
-            prev.map((item, idx) =>
-              idx === i ? { ...item, summary, loading: false } : item,
-            ),
-          );
+          setItems((prev) => {
+            const updated = [...prev];
+            updated[i] = { ...updated[i], summary, loading: false };
+            return updated;
+          });
+          setProcessed((prev) => prev + 1);
         } catch (err) {
           if (cancelledRef.current) break;
           console.warn(`[SummaryScreen] Failed to summarize thread ${t.id}`);
-          setItems((prev) =>
-            prev.map((item, idx) =>
-              idx === i
-                ? {
-                    ...item,
-                    loading: false,
-                    error: err instanceof Error ? err.message : 'Unknown error',
-                  }
-                : item,
-            ),
-          );
+          setItems((prev) => {
+            const updated = [...prev];
+            updated[i] = {
+              ...updated[i],
+              loading: false,
+              error: err instanceof Error ? err.message : 'Unknown error',
+            };
+            return updated;
+          });
         }
-        setProcessed((prev) => prev + 1);
       }
     })();
 
+    const retryAbortMap = retryAbortMapRef.current;
     return () => {
       cancelledRef.current = true;
       abortController.abort();
-      retryAbortRef.current?.abort();
+      for (const ctrl of retryAbortMap.values()) ctrl.abort();
+      retryAbortMap.clear();
     };
   }, [accountId]);
 
   const retrySummary = useCallback(async (index: number, item: SummaryItem) => {
-    setItems((prev) =>
-      prev.map((it, idx) =>
-        idx === index ? { ...it, loading: true, error: null } : it,
-      ),
-    );
+    setItems((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], loading: true, error: null };
+      return updated;
+    });
 
     const abort = new AbortController();
-    retryAbortRef.current = abort;
+    retryAbortMapRef.current.set(index, abort);
 
     try {
       const summary = await summarizeEmail(
@@ -168,25 +169,25 @@ export default function SummaryScreen() {
         abort.signal,
       );
       if (abort.signal.aborted) return;
-      setItems((p) =>
-        p.map((it, idx) =>
-          idx === index ? { ...it, summary, loading: false } : it,
-        ),
-      );
+      setItems((prev) => {
+        const updated = [...prev];
+        updated[index] = { ...updated[index], summary, loading: false };
+        return updated;
+      });
     } catch (err) {
       if (abort.signal.aborted) return;
       console.warn(`[SummaryScreen] Retry failed for thread ${item.thread.id}`);
-      setItems((p) =>
-        p.map((it, idx) =>
-          idx === index
-            ? {
-                ...it,
-                loading: false,
-                error: err instanceof Error ? err.message : 'Unknown error',
-              }
-            : it,
-        ),
-      );
+      setItems((prev) => {
+        const updated = [...prev];
+        updated[index] = {
+          ...updated[index],
+          loading: false,
+          error: err instanceof Error ? err.message : 'Unknown error',
+        };
+        return updated;
+      });
+    } finally {
+      retryAbortMapRef.current.delete(index);
     }
   }, []);
 

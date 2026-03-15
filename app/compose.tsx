@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -39,8 +39,32 @@ export default function ComposeScreen() {
   const { data: suggestions } = useSearchContacts(debouncedTo);
   const { mutate: send, isPending: sending } = useSendEmail(user?.id ?? '');
 
+  const generateAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => generateAbortRef.current?.abort();
+  }, []);
+
+  const handleToChange = useCallback((text: string) => {
+    setTo(text);
+    setShowSuggestions(true);
+  }, []);
+
   const generateWithAI = async () => {
-    if (!body.trim() && !subject.trim()) return;
+    if (!body.trim() && !subject.trim()) {
+      Alert.alert(
+        'Missing input',
+        'Enter a subject or body for AI to work with.',
+      );
+      return;
+    }
+    if (!user) {
+      Alert.alert('Error', 'You must be signed in to use AI generation.');
+      return;
+    }
+    generateAbortRef.current?.abort();
+    const controller = new AbortController();
+    generateAbortRef.current = controller;
     setGenerating(true);
     try {
       const result = await generateEmail(
@@ -48,25 +72,53 @@ export default function ComposeScreen() {
         subject,
         { email: to, name: toName },
         user,
+        controller.signal,
       );
+      if (controller.signal.aborted) return;
       setBody(result);
-    } catch {
+    } catch (err) {
+      if (controller.signal.aborted) return;
+      console.warn('[ComposeScreen] AI generation failed:', err);
       Alert.alert('Error', 'Failed to generate email with AI.');
     } finally {
-      setGenerating(false);
+      if (!controller.signal.aborted) {
+        setGenerating(false);
+      }
     }
   };
 
   const handleSend = () => {
     send(
       { to: [{ name: toName || null, email: to }], subject, body },
-      { onSuccess: () => router.back() },
+      {
+        onSuccess: () => router.back(),
+        onError: () => Alert.alert('Error', 'Failed to send email.'),
+      },
     );
   };
 
   const handleCancel = () => {
     router.back();
   };
+
+  const renderSuggestion = useCallback(
+    ({ item }: { item: NonNullable<typeof suggestions>[number] }) => (
+      <TouchableOpacity
+        className="border-b border-zinc-800 px-3 py-3"
+        onPress={() => {
+          setTo(item.email);
+          setToName(item.name ?? '');
+          setShowSuggestions(false);
+        }}
+      >
+        {item.name ? (
+          <Text className="text-sm text-white">{item.name}</Text>
+        ) : null}
+        <Text className="text-sm text-zinc-400">{item.email}</Text>
+      </TouchableOpacity>
+    ),
+    [],
+  );
 
   const visibleSuggestions =
     showSuggestions && suggestions?.length ? suggestions : [];
@@ -96,10 +148,7 @@ export default function ComposeScreen() {
               placeholder="To"
               placeholderTextColor="#888"
               value={to}
-              onChangeText={(text) => {
-                setTo(text);
-                setShowSuggestions(true);
-              }}
+              onChangeText={handleToChange}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -108,26 +157,11 @@ export default function ComposeScreen() {
             {visibleSuggestions.length > 0 && (
               <View className="absolute top-12 right-0 left-0 rounded-lg bg-zinc-900">
                 <FlatList
-                  data={visibleSuggestions}
+                  data={visibleSuggestions.slice(0, 8)}
                   keyExtractor={(item, index) => `${item.email}-${index}`}
                   keyboardShouldPersistTaps="handled"
-                  renderItem={({ item }) => (
-                    <TouchableOpacity
-                      className="border-b border-zinc-800 px-3 py-3"
-                      onPress={() => {
-                        setTo(item.email);
-                        setToName(item.name);
-                        setShowSuggestions(false);
-                      }}
-                    >
-                      {item.name ? (
-                        <Text className="text-sm text-white">{item.name}</Text>
-                      ) : null}
-                      <Text className="text-sm text-zinc-400">
-                        {item.email}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
+                  renderItem={renderSuggestion}
+                  style={{ maxHeight: 200 }}
                 />
               </View>
             )}
@@ -168,8 +202,8 @@ export default function ComposeScreen() {
           <TouchableOpacity
             className="mt-4 flex-1 rounded-2xl bg-white p-4"
             onPress={handleSend}
-            disabled={sending || !to}
-            style={{ opacity: sending || !to ? 0.5 : 1 }}
+            disabled={sending || !to || !user?.id}
+            style={{ opacity: sending || !to || !user?.id ? 0.5 : 1 }}
           >
             {sending ? (
               <ActivityIndicator size="small" color="black" />

@@ -19,6 +19,7 @@ import { useAuthStore } from '@/store/authStore';
 // If multi-account is added, change to Map<string, ...> like refreshPromises.
 let cachedToken: { value: string; expiresAt: number } | null = null;
 const refreshPromises = new Map<string, Promise<string>>();
+let authGeneration = 0;
 
 export const clearTokenCache = () => {
   cachedToken = null;
@@ -26,6 +27,7 @@ export const clearTokenCache = () => {
 };
 
 const handleAuthFailure = () => {
+  authGeneration++;
   cachedToken = null;
   refreshPromises.clear();
   clearAllCooldowns();
@@ -39,6 +41,8 @@ export const getAccessToken = async (
   if (cachedToken && Date.now() < cachedToken.expiresAt) {
     return cachedToken.value;
   }
+
+  const gen = authGeneration;
 
   const tokens = await getStoredTokens(accountType);
   if (!tokens) {
@@ -56,6 +60,9 @@ export const getAccessToken = async (
           throw new Error(
             'Failed to refresh Gmail tokens. Please re-authenticate.',
           );
+        }
+        if (gen !== authGeneration) {
+          throw new Error('Auth state was reset during token refresh');
         }
         cachedToken = {
           value: refreshed.access_token,
@@ -103,7 +110,7 @@ export const apiRequestRaw = async (
     }
 
     if (response.status === 403) {
-      const body = await response.json().catch(() => ({}));
+      const body = await response.clone().json().catch(() => ({}));
       const reason = body?.error?.errors?.[0]?.reason;
       if (
         reason === 'rateLimitExceeded' ||
