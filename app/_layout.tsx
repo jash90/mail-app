@@ -26,10 +26,13 @@ const queryClient = new QueryClient({
 });
 
 export default function RootLayout() {
-  const { success: migrationSuccess, error: migrationError } = useMigrations(db, migrations);
+  const { success: migrationSuccess, error: migrationError } = useMigrations(
+    db,
+    migrations,
+  );
   const router = useRouter();
-  const isAuthenticated = useAuthStore(s => s.isAuthenticated);
-  const setUser = useAuthStore(s => s.setUser);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const setUser = useAuthStore((s) => s.setUser);
 
   useEffect(() => {
     if (!migrationSuccess) return;
@@ -48,15 +51,31 @@ export default function RootLayout() {
 
   if (migrationError) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
-        <Text style={{ color: '#f87171' }}>Database error: {migrationError.message}</Text>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#000',
+        }}
+      >
+        <Text style={{ color: '#f87171' }}>
+          Database error: {migrationError.message}
+        </Text>
       </View>
     );
   }
 
   if (!migrationSuccess) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#000',
+        }}
+      >
         <Text style={{ color: '#a1a1aa' }}>Initializing...</Text>
       </View>
     );

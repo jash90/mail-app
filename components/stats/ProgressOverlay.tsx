@@ -21,15 +21,15 @@ export default function ProgressOverlay({ progress, visible }: Props) {
       ? 'Retrying failed requests...'
       : 'Loading messages...';
 
-  const value = isListing
-    ? `${loaded} found`
-    : `${loaded}/${total} (${pct}%)`;
+  const value = isListing ? `${loaded} found` : `${loaded}/${total} (${pct}%)`;
 
   return (
     <View className="mb-3 rounded-lg bg-zinc-900 p-3">
       <View className="flex-row items-center justify-between">
         <Text className="text-xs text-zinc-400">{label}</Text>
-        <Text className={`text-xs font-medium ${isRetrying ? 'text-amber-400' : 'text-indigo-400'}`}>
+        <Text
+          className={`text-xs font-medium ${isRetrying ? 'text-amber-400' : 'text-indigo-400'}`}
+        >
           {value}
         </Text>
       </View>

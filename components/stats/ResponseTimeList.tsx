@@ -18,11 +18,16 @@ export default function ResponseTimeList({ contacts }: Props) {
 
   return (
     <View className="mt-4">
-      <Text className="mb-2 text-lg font-semibold text-white">Response Times</Text>
+      <Text className="mb-2 text-lg font-semibold text-white">
+        Response Times
+      </Text>
       {sorted.slice(0, 7).map((contact) => {
         const displayName = contact.name || contact.email.split('@')[0];
         return (
-          <View key={contact.email} className="mb-2 flex-row items-center justify-between">
+          <View
+            key={contact.email}
+            className="mb-2 flex-row items-center justify-between"
+          >
             <Text className="flex-1 text-sm text-zinc-300" numberOfLines={1}>
               {displayName}
             </Text>

@@ -40,19 +40,25 @@ export default function TimeChart({ hourOfDay, dayOfWeek }: Props) {
         </View>
       </View>
 
-      <View className="h-32 flex-row items-end justify-between rounded-xl bg-zinc-900 px-2 pb-4 pt-2">
+      <View className="h-32 flex-row items-end justify-between rounded-xl bg-zinc-900 px-2 pt-2 pb-4">
         {data.map((val, i) => (
           <View key={i} className="flex-1 items-center">
             <View
               className="w-full max-w-[12px] rounded-t bg-indigo-500"
-              style={{ height: `${(val / maxVal) * 100}%`, minHeight: val > 0 ? 2 : 0 }}
+              style={{
+                height: `${(val / maxVal) * 100}%`,
+                minHeight: val > 0 ? 2 : 0,
+              }}
             />
           </View>
         ))}
       </View>
       <View className="mt-1 flex-row justify-between px-2">
         {labels.map((label, i) => (
-          <Text key={i} className="flex-1 text-center text-[10px] text-zinc-500">
+          <Text
+            key={i}
+            className="flex-1 text-center text-[10px] text-zinc-500"
+          >
             {label}
           </Text>
         ))}

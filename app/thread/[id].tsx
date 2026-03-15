@@ -1,5 +1,10 @@
 import { generateReply } from '@/features/ai/api';
-import { useMarkAsRead, useSendReply, useThread, useThreadMessages } from '@/features/gmail';
+import {
+  useMarkAsRead,
+  useSendReply,
+  useThread,
+  useThreadMessages,
+} from '@/features/gmail';
 import { parseCompositeId } from '@/lib/parseCompositeId';
 import { useAuthStore } from '@/store/authStore';
 import { ThreadMessageItem } from '@/components/ThreadMessageItem';
@@ -25,7 +30,9 @@ export default function ThreadScreen() {
   const router = useRouter();
   const [message, setMessage] = useState('');
   const [generatingAI, setGeneratingAI] = useState(false);
-  const [webViewHeights, setWebViewHeights] = useState<Record<string, number>>({});
+  const [webViewHeights, setWebViewHeights] = useState<Record<string, number>>(
+    {},
+  );
   const user = useAuthStore((s) => s.user);
 
   const { accountId, providerId: providerThreadId } = useMemo(
@@ -87,7 +94,10 @@ export default function ThreadScreen() {
       {
         onSuccess: () => setMessage(''),
         onError: (error: any) => {
-          Alert.alert('Error', `Failed to send reply: ${error?.message ?? 'Please try again.'}`);
+          Alert.alert(
+            'Error',
+            `Failed to send reply: ${error?.message ?? 'Please try again.'}`,
+          );
         },
       },
     );
@@ -100,7 +110,13 @@ export default function ThreadScreen() {
       const lastMsg = messages[messages.length - 1];
       const { email, name } = lastMsg.from;
       const originalText = lastMsg.body.text || lastMsg.snippet;
-      const result = await generateReply(originalText, message, thread?.subject, { email, name: name ?? "" }, user);
+      const result = await generateReply(
+        originalText,
+        message,
+        thread?.subject,
+        { email, name: name ?? '' },
+        user,
+      );
       setMessage(result);
     } catch {
       Alert.alert('Error', 'Failed to generate AI reply.');
@@ -157,7 +173,7 @@ export default function ThreadScreen() {
       </View>
 
       <ScrollView
-        className="flex-1 py-3 w-full"
+        className="w-full flex-1 py-3"
         contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
       >
@@ -172,7 +188,7 @@ export default function ThreadScreen() {
         ))}
       </ScrollView>
 
-      <View className="absolute right-0 bottom-0 left-0 flex-row flex-1 justify-between bg-zinc-900 p-4">
+      <View className="absolute right-0 bottom-0 left-0 flex-1 flex-row justify-between bg-zinc-900 p-4">
         <TextInput
           className="mb-3 flex-1 rounded-lg p-3 text-base text-white"
           placeholder="Write your message"
