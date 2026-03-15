@@ -61,7 +61,12 @@ export default function SummaryScreen() {
 
         const t = threads[i];
         try {
-          const summary = await summarizeEmail(t.id, t.subject, t.snippet);
+          const summary = await summarizeEmail(
+            t.id,
+            t.subject,
+            t.snippet,
+            abortController.signal,
+          );
           if (cancelledRef.current) break;
           setItems((prev) =>
             prev.map((item, idx) =>

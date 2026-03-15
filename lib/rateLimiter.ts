@@ -1,4 +1,4 @@
-import { RATE_LIMIT, GRAPH_API } from '@/config/constants';
+import { RATE_LIMIT } from '@/config/constants';
 
 // --- Error types ---
 
@@ -22,7 +22,6 @@ export class NonRetryableError extends Error {
 
 interface ThrottleState {
   retryAfterMs: number | null;
-  throttlePercent: number | null;
   cooldownUntil: number | null;
 }
 
@@ -32,7 +31,6 @@ function getState(provider: string): ThrottleState {
   if (!throttleStates.has(provider)) {
     throttleStates.set(provider, {
       retryAfterMs: null,
-      throttlePercent: null,
       cooldownUntil: null,
     });
   }
@@ -65,22 +63,8 @@ export function updateThrottleState(
 ): void {
   const state = getState(provider);
 
-  // Microsoft Graph throttle percentage
-  const pct = response.headers.get(
-    GRAPH_API.throttleHeaders.throttlePercentage,
-  );
-  if (pct) {
-    const percent = parseFloat(pct);
-    state.throttlePercent = percent;
-    if (percent >= GRAPH_API.throttleThreshold) {
-      state.cooldownUntil = Date.now() + GRAPH_API.cooldownMs;
-    }
-  }
-
-  // Retry-After header (Gmail & Graph)
-  const retryAfter = response.headers.get(
-    GRAPH_API.throttleHeaders.retryAfter,
-  );
+  // Retry-After header
+  const retryAfter = response.headers.get('retry-after');
   if (retryAfter) {
     const seconds = parseInt(retryAfter, 10);
     if (!isNaN(seconds)) {
@@ -94,7 +78,6 @@ export function clearCooldown(provider = 'gmail'): void {
   const state = getState(provider);
   state.cooldownUntil = null;
   state.retryAfterMs = null;
-  state.throttlePercent = null;
 }
 
 /**
