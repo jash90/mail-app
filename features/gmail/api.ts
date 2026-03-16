@@ -16,10 +16,10 @@ import {
 import { useAuthStore } from '@/store/authStore';
 
 /** Hermes doesn't support AbortSignal.timeout() — polyfill with AbortController + setTimeout. */
-const createTimeoutSignal = (ms: number): AbortSignal => {
+const createTimeoutAbort = (ms: number) => {
   const controller = new AbortController();
-  setTimeout(() => controller.abort(), ms);
-  return controller.signal;
+  const timer = setTimeout(() => controller.abort(), ms);
+  return { signal: controller.signal, clear: () => clearTimeout(timer) };
 };
 
 // Single cached token — only one account type (gmail) is supported.
@@ -99,14 +99,20 @@ export const apiRequestRaw = async (
     const token = await getAccessToken('gmail');
     await waitForCooldown();
 
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        ...options.headers,
-      },
-      signal: options.signal ?? createTimeoutSignal(30_000),
-    });
+    const timeout = options.signal ? null : createTimeoutAbort(30_000);
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...options.headers,
+        },
+        signal: options.signal ?? timeout!.signal,
+      });
+    } finally {
+      timeout?.clear();
+    }
 
     updateThrottleState(response);
 

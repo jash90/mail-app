@@ -18,6 +18,25 @@ export function upsertThreads(threadList: EmailThread[]): void {
   if (threadList.length === 0) return;
 
   db.transaction((tx) => {
+    // Ensure all referenced label rows exist so FK on thread_labels is satisfied
+    const seenLabels = new Set<string>();
+    for (const t of threadList) {
+      for (const labelId of t.label_ids) {
+        if (seenLabels.has(labelId)) continue;
+        seenLabels.add(labelId);
+        tx.insert(labels)
+          .values({
+            id: labelId,
+            accountId: t.account_id,
+            providerLabelId: labelId,
+            name: labelId,
+            type: 'system',
+          })
+          .onConflictDoNothing()
+          .run();
+      }
+    }
+
     for (const t of threadList) {
       // Upsert thread
       tx.insert(threads)
@@ -51,20 +70,6 @@ export function upsertThreads(threadList: EmailThread[]): void {
           },
         })
         .run();
-
-      // Ensure label rows exist so FK on thread_labels is satisfied
-      for (const labelId of t.label_ids) {
-        tx.insert(labels)
-          .values({
-            id: labelId,
-            accountId: t.account_id,
-            providerLabelId: labelId,
-            name: labelId,
-            type: 'system',
-          })
-          .onConflictDoNothing()
-          .run();
-      }
 
       // Replace labels
       tx.delete(threadLabels).where(eq(threadLabels.threadId, t.id)).run();
