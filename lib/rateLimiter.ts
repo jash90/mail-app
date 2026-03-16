@@ -64,11 +64,6 @@ const jitter = () => Math.random() * 500;
 
 // --- Public API ---
 
-export function shouldThrottle(provider = 'gmail'): boolean {
-  const state = getState(provider);
-  return state.cooldownUntil !== null && Date.now() < state.cooldownUntil;
-}
-
 export async function waitForCooldown(provider = 'gmail'): Promise<void> {
   const state = getState(provider);
   if (state.cooldownUntil && Date.now() < state.cooldownUntil) {
@@ -102,12 +97,6 @@ export function updateThrottleState(
       state.cooldownUntil = Date.now() + delayMs;
     }
   }
-}
-
-export function clearCooldown(provider = 'gmail'): void {
-  const state = getState(provider);
-  state.cooldownUntil = null;
-  state.retryAfterMs = null;
 }
 
 export function clearAllCooldowns(): void {

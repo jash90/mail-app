@@ -259,7 +259,6 @@ export async function fetchAllMessages(
 ): Promise<FetchAllMessagesResult> {
   const allThreadIds = await listAllThreadIds(['INBOX', 'SENT'], onProgress);
   const totalListedCount = allThreadIds.length;
-  console.log(`[Stats] totalListedCount = ${totalListedCount}`);
 
   // Remove threads from DB that are no longer in INBOX
   const purgedCount = purgeThreadsNotInList(accountId, allThreadIds);
@@ -267,9 +266,6 @@ export async function fetchAllMessages(
   // Filter out threads that are fresh in the local DB (updated < 24h ago)
   const staleIds = filterStaleProviderThreadIds(accountId, allThreadIds);
   const cachedCount = totalListedCount - staleIds.length;
-  console.log(
-    `[Stats] cachedCount = ${cachedCount}, staleIds = ${staleIds.length}`,
-  );
 
   const allThreads: EmailThread[] = [];
   let { retryIds: retryQueue, skippedCount: totalSkipped } =
@@ -290,9 +286,6 @@ export async function fetchAllMessages(
     round++
   ) {
     const backoffMs = 4000 * 2 ** round;
-    console.log(
-      `[Stats] Retry round ${round + 1}/${MAX_RETRY_ROUNDS}: ${retryQueue.length} IDs, backoff ${backoffMs}ms`,
-    );
     await delay(backoffMs);
 
     const result = await processBatchQueue(
@@ -309,9 +302,6 @@ export async function fetchAllMessages(
   }
 
   const failedCount = retryQueue.length;
-  console.log(
-    `[Stats] DONE: totalListed=${totalListedCount} cached=${cachedCount} purged=${purgedCount} loaded=${allThreads.length} failed=${failedCount} skipped=${totalSkipped}`,
-  );
   if (failedCount > 0) {
     console.warn(`${failedCount} threads failed after all retry rounds`);
   }

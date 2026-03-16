@@ -214,7 +214,7 @@ function getThreadColumns() {
 }
 
 /** Get a single thread by ID with participants and labels. */
-export function getThreadById(id: string): EmailThread | null {
+function getThreadById(id: string): EmailThread | null {
   const row = db.select().from(threads).where(eq(threads.id, id)).get();
   if (!row) return null;
   return hydrateThread(row);

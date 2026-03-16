@@ -78,10 +78,6 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     id: 'bielik-1.5b',
     label: 'Bielik 1.5B v3.0',
     description: 'Polski model instruct, LlamaForCausalLM (~1.5GB)',
-    // Export .pte:
-    //   pip install optimum-executorch
-    //   optimum-executorch export --model speakleash/Bielik-1.5B-v3.0-Instruct --recipe xnnpack --output_dir bielik_pte
-    // Then host the .pte, tokenizer.json, tokenizer_config.json and update URLs below.
     model: {
       modelSource:
         'https://huggingface.co/jash90/bielik-1.5b-v3.0-instruct-executorch/resolve/main/model.pte',
