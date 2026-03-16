@@ -3,11 +3,8 @@ import { useAuthStore } from '@/store/authStore';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { Alert, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { withUniwind } from 'uniwind';
-
-const StyledSafeAreaView = withUniwind(SafeAreaView);
+import { Alert, Pressable, Text, View } from 'react-native';
+import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -72,12 +69,9 @@ export default function LoginScreen() {
         </Text>
       </View>
 
-      <TouchableOpacity
-        className="w-full rounded-2xl bg-white p-4"
-        onPress={signIn}
-      >
+      <Pressable className="w-full rounded-2xl bg-white p-4" onPress={signIn}>
         <Text className="text-center text-black">Continue with Gmail</Text>
-      </TouchableOpacity>
+      </Pressable>
 
       <View className="h-[60px] items-center justify-end">
         <Text className="text-center text-sm text-white">

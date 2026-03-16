@@ -213,13 +213,6 @@ function getThreadColumns() {
   };
 }
 
-/** Get a single thread by ID with participants and labels. */
-function getThreadById(id: string): EmailThread | null {
-  const row = db.select().from(threads).where(eq(threads.id, id)).get();
-  if (!row) return null;
-  return hydrateThread(row);
-}
-
 /** Update thread flags (is_read, is_starred, etc.). */
 export function updateThreadFlags(
   id: string,

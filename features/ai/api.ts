@@ -142,8 +142,6 @@ export async function prefetchSummaries(
 
   for (const t of threads) {
     if (signal?.aborted) return;
-    const cached = getSummaryCache(t.id);
-    if (cached) continue;
     try {
       await summarizeEmail(t.id, t.subject, t.snippet, signal);
       consecutiveFailures = 0;

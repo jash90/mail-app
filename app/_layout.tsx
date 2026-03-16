@@ -15,6 +15,13 @@ import { LocalAIProvider } from '@/features/ai/local/LocalAIProvider';
 
 const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
 
+const centeredContainerStyle = {
+  flex: 1,
+  justifyContent: 'center' as const,
+  alignItems: 'center' as const,
+  backgroundColor: '#000',
+};
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -32,14 +39,7 @@ export default function RootLayout() {
 
   if (migrationError) {
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundColor: '#000',
-        }}
-      >
+      <View style={centeredContainerStyle}>
         <Text style={{ color: '#f87171' }}>
           Database error: {migrationError.message}
         </Text>
@@ -49,14 +49,7 @@ export default function RootLayout() {
 
   if (!migrationSuccess) {
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundColor: '#000',
-        }}
-      >
+      <View style={centeredContainerStyle}>
         <Text style={{ color: '#a1a1aa' }}>Initializing...</Text>
       </View>
     );

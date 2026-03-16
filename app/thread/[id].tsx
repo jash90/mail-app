@@ -17,13 +17,10 @@ import {
   ScrollView,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { withUniwind } from 'uniwind';
-
-const StyledSafeAreaView = withUniwind(SafeAreaView);
+import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 const scrollContentStyle = { paddingBottom: 120 } as const;
 
 export default function ThreadScreen() {
@@ -163,9 +160,9 @@ export default function ThreadScreen() {
         <Text className="mb-4 text-center text-lg text-red-400">
           Failed to load thread
         </Text>
-        <TouchableOpacity onPress={handleBack}>
+        <Pressable onPress={handleBack}>
           <Text className="text-indigo-400">Go back</Text>
-        </TouchableOpacity>
+        </Pressable>
       </StyledSafeAreaView>
     );
   }
@@ -180,12 +177,12 @@ export default function ThreadScreen() {
           {thread.subject}
         </Text>
 
-        <TouchableOpacity
+        <Pressable
           className="items-center justify-center rounded-2xl p-2"
           onPress={handleBack}
         >
           <Icon name="close" size={24} color="white" />
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       <ScrollView
@@ -217,7 +214,7 @@ export default function ThreadScreen() {
           editable={!replying}
         />
         <View className="items-center justify-between gap-4">
-          <TouchableOpacity
+          <Pressable
             className="items-center justify-center rounded-4xl bg-black p-4"
             onPress={handleReply}
             disabled={replying || !message.trim()}
@@ -228,8 +225,8 @@ export default function ThreadScreen() {
             ) : (
               <Icon name="paper-plane" size={24} color="white" />
             )}
-          </TouchableOpacity>
-          <TouchableOpacity
+          </Pressable>
+          <Pressable
             className="items-center justify-center rounded-4xl bg-black p-4"
             onPress={handleAIReply}
             disabled={generatingAI}
@@ -240,7 +237,7 @@ export default function ThreadScreen() {
             ) : (
               <Icon name="magic-wand" size={24} color="white" />
             )}
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
     </StyledSafeAreaView>

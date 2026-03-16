@@ -191,13 +191,6 @@ export function getMessagesByThread(threadId: string): EmailMessage[] {
   return rows.map(hydrateMessage);
 }
 
-/** Get a single message by ID. */
-function getMessageById(id: string): EmailMessage | null {
-  const row = db.select().from(messages).where(eq(messages.id, id)).get();
-  if (!row) return null;
-  return hydrateMessage(row);
-}
-
 // --- Helpers ---
 
 function hydrateMessage(row: typeof messages.$inferSelect): EmailMessage {

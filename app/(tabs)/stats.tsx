@@ -2,12 +2,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ScrollView,
   Text,
-  TouchableOpacity,
+  Pressable,
   View,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { withUniwind } from 'uniwind';
 import { useAuthStore } from '@/store/authStore';
 import { useEmailStats } from '@/features/stats';
 import StatCard from '@/components/stats/StatCard';
@@ -17,8 +15,7 @@ import ThreadLengthChart from '@/components/stats/ThreadLengthChart';
 import ResponseTimeList from '@/components/stats/ResponseTimeList';
 import ProgressOverlay from '@/components/stats/ProgressOverlay';
 import { StatsSkeleton } from '@/components/skeletons';
-
-const StyledSafeAreaView = withUniwind(SafeAreaView);
+import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 
 export default function StatsScreen() {
   const user = useAuthStore((s) => s.user);
@@ -101,12 +98,12 @@ export default function StatsScreen() {
         {error && !isLoadingFull && (
           <View className="mb-3 rounded-xl border border-red-900 bg-red-950/50 p-3">
             <Text className="mb-2 text-sm text-red-400">{error}</Text>
-            <TouchableOpacity
+            <Pressable
               onPress={fetchFull}
               className="self-start rounded-lg bg-red-900/50 px-3 py-1.5"
             >
               <Text className="text-xs font-medium text-red-300">Retry</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         )}
 

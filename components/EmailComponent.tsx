@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 type EmailItemProps = {
   item: {
@@ -40,11 +40,10 @@ const EmailComponent: React.FC<EmailItemProps> = ({
   const weight = item.isUnread ? 'font-bold' : 'font-normal';
 
   return (
-    <TouchableOpacity
+    <Pressable
       className="w-full border-b border-gray-700 px-1 py-3"
       onPress={onPress}
       onLongPress={onLongPress}
-      activeOpacity={0.7}
     >
       <View className="flex-row items-center justify-between">
         <Text className={`flex-1 text-white ${styles.name} ${weight}`}>
@@ -60,7 +59,7 @@ const EmailComponent: React.FC<EmailItemProps> = ({
       <Text className={styles.snippet} numberOfLines={1} ellipsizeMode="tail">
         {item.snippet}
       </Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 

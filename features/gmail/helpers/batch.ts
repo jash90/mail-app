@@ -42,13 +42,3 @@ export const parseMultipartResponseWithStatus = (
   return results;
 };
 
-/**
- * Parse a multipart/mixed batch response into individual JSON bodies.
- * Backward-compatible wrapper — returns only successful (2xx) bodies.
- */
-export const parseMultipartResponse = (responseText: string, boundary: string): unknown[] => {
-  const parts = parseMultipartResponseWithStatus(responseText, boundary);
-  return parts
-    .filter((p) => p.body !== null && (p.status === 0 || (p.status >= 200 && p.status < 300)))
-    .map((p) => p.body);
-};

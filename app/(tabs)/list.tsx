@@ -20,13 +20,10 @@ import {
   FlatList,
   RefreshControl,
   Text,
-  TouchableOpacity,
+  Pressable,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { withUniwind } from 'uniwind';
-
-const StyledSafeAreaView = withUniwind(SafeAreaView);
+import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 
 export default function ListScreen() {
   const router = useRouter();
@@ -160,13 +157,13 @@ export default function ListScreen() {
     <StyledSafeAreaView className="flex-1 bg-black p-4" edges={['top']}>
       <View className="flex-row items-center justify-between p-2">
         <Text className="text-4xl font-bold text-white">AI Mail</Text>
-        <TouchableOpacity
+        <Pressable
           className="flex-row items-center"
           onPress={() => router.push('/summary')}
         >
           <Icon name="magic-wand" size={18} color="#818cf8" />
           <Text className="ml-2 font-semibold text-indigo-400">Summary</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {isLoading ? (
@@ -196,12 +193,12 @@ export default function ListScreen() {
         />
       )}
 
-      <TouchableOpacity
+      <Pressable
         className="absolute right-6 bottom-10 h-16 w-16 items-center justify-center rounded-full bg-white"
         onPress={handleCompose}
       >
         <Icon name="envelope" size={24} color="black" />
-      </TouchableOpacity>
+      </Pressable>
     </StyledSafeAreaView>
   );
 }

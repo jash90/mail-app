@@ -3,7 +3,7 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
@@ -12,16 +12,15 @@ import {
   ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { withUniwind } from 'uniwind';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
 import { useSearchContacts, useSendEmail } from '@/features/gmail/hooks';
 import { generateEmail } from '@/features/ai/api';
 import { useStreamingResponse } from '@/features/ai/local/hooks';
 import { getActiveProviderName } from '@/features/ai/providers';
 import { useAuthStore } from '@/store/authStore';
+import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 
-const StyledSafeAreaView = withUniwind(SafeAreaView);
+const suggestionsListStyle = { maxHeight: 200 } as const;
 
 export default function ComposeScreen() {
   const router = useRouter();
@@ -110,7 +109,7 @@ export default function ComposeScreen() {
 
   const renderSuggestion = useCallback(
     ({ item }: { item: NonNullable<typeof suggestions>[number] }) => (
-      <TouchableOpacity
+      <Pressable
         className="border-b border-zinc-800 px-3 py-3"
         onPress={() => {
           setTo(item.email);
@@ -122,7 +121,7 @@ export default function ComposeScreen() {
           <Text className="text-sm text-white">{item.name}</Text>
         ) : null}
         <Text className="text-sm text-zinc-400">{item.email}</Text>
-      </TouchableOpacity>
+      </Pressable>
     ),
     [],
   );
@@ -141,12 +140,12 @@ export default function ComposeScreen() {
             Compose
           </Text>
 
-          <TouchableOpacity
+          <Pressable
             className="items-center justify-center rounded-2xl p-2"
             onPress={handleCancel}
           >
             <Icon name="close" size={24} color="white" />
-          </TouchableOpacity>
+          </Pressable>
         </View>
         <View className="flex-1">
           <View style={{ zIndex: 10 }}>
@@ -168,7 +167,7 @@ export default function ComposeScreen() {
                   keyExtractor={(item, index) => `${item.email}-${index}`}
                   keyboardShouldPersistTaps="handled"
                   renderItem={renderSuggestion}
-                  style={{ maxHeight: 200 }}
+                  style={suggestionsListStyle}
                 />
               </View>
             )}
@@ -182,14 +181,14 @@ export default function ComposeScreen() {
             selectionColor="#2dd4bf"
           />
           <View className="mb-2 flex-row items-center">
-            <TouchableOpacity
+            <Pressable
               className="flex-row items-center rounded-lg px-3 py-1.5"
               onPress={generateWithAI}
               disabled={generating}
             >
               <Icon name="magic-wand" size={18} color="white" />
               <Text className="ml-2 font-semibold text-white">AI Reply</Text>
-            </TouchableOpacity>
+            </Pressable>
             {generating && (
               <ActivityIndicator size="small" color="white" className="ml-2" />
             )}
@@ -214,7 +213,7 @@ export default function ComposeScreen() {
           )}
         </View>
         <View className="flex-row justify-between gap-4">
-          <TouchableOpacity
+          <Pressable
             className="mt-4 flex-1 rounded-2xl bg-white p-4"
             onPress={handleSend}
             disabled={sending || !to || !user?.id}
@@ -227,7 +226,7 @@ export default function ComposeScreen() {
                 Send
               </Text>
             )}
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </StyledSafeAreaView>

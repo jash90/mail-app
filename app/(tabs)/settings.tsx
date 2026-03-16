@@ -2,14 +2,12 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { withUniwind } from 'uniwind';
 import { useAuthStore } from '@/store/authStore';
 import {
   useAiSettingsStore,
@@ -24,8 +22,7 @@ import {
   getModelById,
 } from '@/features/ai/local/model-manager';
 import { useModelDownload } from '@/features/ai/local/hooks';
-
-const StyledSafeAreaView = withUniwind(SafeAreaView);
+import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 
 const PROVIDER_OPTIONS: {
   value: AiProviderType;
@@ -103,7 +100,7 @@ export default function SettingsScreen() {
 
         <View className="mb-4 gap-2">
           {PROVIDER_OPTIONS.map((opt) => (
-            <TouchableOpacity
+            <Pressable
               key={opt.value}
               className={`rounded-xl p-3 ${
                 provider === opt.value
@@ -116,7 +113,7 @@ export default function SettingsScreen() {
                 {opt.label}
               </Text>
               <Text className="text-sm text-zinc-400">{opt.desc}</Text>
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </View>
 
@@ -130,7 +127,7 @@ export default function SettingsScreen() {
               {AVAILABLE_MODELS.map((model) => {
                 const isSelected = selectedModelId === model.id;
                 return (
-                  <TouchableOpacity
+                  <Pressable
                     key={model.id}
                     className={`flex-row items-center rounded-xl p-3 ${
                       isSelected
@@ -155,7 +152,7 @@ export default function SettingsScreen() {
                         onDelete={handleDeleteModel}
                       />
                     )}
-                  </TouchableOpacity>
+                  </Pressable>
                 );
               })}
             </View>
@@ -168,14 +165,11 @@ export default function SettingsScreen() {
       </ScrollView>
 
       <View className="p-4">
-        <TouchableOpacity
-          className="rounded-2xl bg-white p-4"
-          onPress={handleLogout}
-        >
+        <Pressable className="rounded-2xl bg-white p-4" onPress={handleLogout}>
           <Text className="text-center text-lg font-semibold text-black">
             Logout
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </StyledSafeAreaView>
   );
@@ -194,9 +188,9 @@ function ModelCardAction({
 }) {
   if (status === 'not-downloaded') {
     return (
-      <TouchableOpacity onPress={onDownload} className="ml-3 p-1">
+      <Pressable onPress={onDownload} className="ml-3 p-1">
         <Ionicons name="cloud-download-outline" size={22} color="#818cf8" />
-      </TouchableOpacity>
+      </Pressable>
     );
   }
 
@@ -220,9 +214,9 @@ function ModelCardAction({
 
   if (status === 'ready' || status === 'downloaded' || status === 'error') {
     return (
-      <TouchableOpacity onPress={onDelete} className="ml-3 p-1">
+      <Pressable onPress={onDelete} className="ml-3 p-1">
         <Ionicons name="trash-outline" size={20} color="#f87171" />
-      </TouchableOpacity>
+      </Pressable>
     );
   }
 

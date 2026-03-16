@@ -106,13 +106,13 @@ export function useEmailStats(accountId: string) {
     computeDbStats();
   }, [computeDbStats]);
 
-  const refetch = useCallback(() => {
+  const refetch = useCallback(async () => {
     // Clean up legacy duplicate stat messages before re-fetching
     purgeOldStatMessages(accountId);
     computeDbStats();
     setFullStats(null);
     setError(null);
-    fetchFull();
+    await fetchFull();
   }, [accountId, computeDbStats, fetchFull]);
 
   return {

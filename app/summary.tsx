@@ -9,13 +9,10 @@ import {
   ActivityIndicator,
   FlatList,
   Text,
-  TouchableOpacity,
+  Pressable,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { withUniwind } from 'uniwind';
-
-const StyledSafeAreaView = withUniwind(SafeAreaView);
+import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 
 const listContentStyle = { paddingHorizontal: 16, paddingBottom: 32 } as const;
 
@@ -57,12 +54,12 @@ const SummaryItemRow = memo(function SummaryItemRow({
           <Text className="flex-1 text-sm text-red-400">
             Error: {item.error}
           </Text>
-          <TouchableOpacity
+          <Pressable
             onPress={() => onRetry(index, item)}
             className="rounded-lg bg-indigo-600 px-3 py-1.5"
           >
             <Text className="text-xs font-semibold text-white">Retry</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       ) : (
         <Text className="mt-2 text-sm leading-5 text-zinc-300">
@@ -203,9 +200,9 @@ export default function SummaryScreen() {
   return (
     <StyledSafeAreaView className="flex-1 bg-black" edges={['top']}>
       <View className="flex-row items-center gap-4 p-4">
-        <TouchableOpacity onPress={() => router.back()}>
+        <Pressable onPress={() => router.back()}>
           <Icon name="arrow-left" size={20} color="white" />
-        </TouchableOpacity>
+        </Pressable>
         <Text className="text-2xl font-bold text-white">AI Summary</Text>
       </View>
 

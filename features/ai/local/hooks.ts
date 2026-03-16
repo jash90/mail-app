@@ -27,22 +27,3 @@ export function useStreamingResponse() {
   return { streamingResponse: response, isGenerating };
 }
 
-export function useAiProvider() {
-  const provider = useAiSettingsStore((s) => s.provider);
-  const modelStatus = useAiSettingsStore((s) => s.modelStatus);
-  const setProvider = useAiSettingsStore((s) => s.setProvider);
-
-  const activeProvider: 'cloud' | 'local' =
-    provider === 'local' && modelStatus === 'ready'
-      ? 'local'
-      : provider === 'auto' && modelStatus === 'ready'
-        ? 'local'
-        : 'cloud';
-
-  return {
-    provider,
-    activeProvider,
-    modelStatus,
-    setProvider,
-  };
-}

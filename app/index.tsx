@@ -3,10 +3,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { withUniwind } from 'uniwind';
-
-const StyledSafeAreaView = withUniwind(SafeAreaView);
+import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 
 export default function IndexScreen() {
   const router = useRouter();

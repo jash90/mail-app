@@ -36,6 +36,7 @@ export function extractBody(payload: GmailMessagePayload): {
     if (part.mimeType === 'text/html' && part.body?.data && !html) {
       html = base64Decode(part.body.data);
     }
+    if (text && html) return;
     if (part.parts) {
       part.parts.forEach(extractPart);
     }

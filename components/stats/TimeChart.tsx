@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 
 interface Props {
   hourOfDay: number[];
@@ -25,18 +25,18 @@ export default function TimeChart({ hourOfDay, dayOfWeek }: Props) {
           Activity by {mode === 'hour' ? 'Hour' : 'Day'}
         </Text>
         <View className="flex-row rounded-lg bg-zinc-800">
-          <TouchableOpacity
+          <Pressable
             className={`rounded-lg px-3 py-1 ${mode === 'hour' ? 'bg-indigo-600' : ''}`}
             onPress={() => setMode('hour')}
           >
             <Text className="text-xs text-white">Hour</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+          </Pressable>
+          <Pressable
             className={`rounded-lg px-3 py-1 ${mode === 'day' ? 'bg-indigo-600' : ''}`}
             onPress={() => setMode('day')}
           >
             <Text className="text-xs text-white">Day</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
 
