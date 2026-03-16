@@ -1,10 +1,10 @@
 import type { AiProvider, ChatMessage } from '../types';
-import { chatCompletion } from '../api';
+import { chatCompletion } from '../cloud-api';
 
 export const cloudProvider: AiProvider = {
   name: 'cloud',
 
-  async generate(messages: ChatMessage[]): Promise<string> {
-    return chatCompletion(messages);
+  async generate(messages: ChatMessage[], signal?: AbortSignal): Promise<string> {
+    return chatCompletion(messages, signal);
   },
 };

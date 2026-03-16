@@ -39,7 +39,7 @@ function getState(provider: string): ThrottleState {
 
 // --- Helpers ---
 
-export const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+export const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 function abortableDelay(ms: number, signal?: AbortSignal): Promise<void> {
   if (!signal) return delay(ms);

@@ -4,8 +4,8 @@ export interface ChatMessage {
 }
 
 export interface AiProvider {
-  name: 'cloud' | 'local';
-  generate(messages: ChatMessage[]): Promise<string>;
+  name: 'cloud';
+  generate(messages: ChatMessage[], signal?: AbortSignal): Promise<string>;
 }
 
 export interface EmailContext {
@@ -15,7 +15,7 @@ export interface EmailContext {
 
 export function formatContext(
   ctx: EmailContext,
-  labels: { recipient: string; sender: string } = { recipient: 'Recipient', sender: 'Sender' },
+  labels: { recipient: string; sender: string } = { recipient: 'Odbiorca', sender: 'Nadawca' },
 ): string {
   const lines: string[] = [];
   if (ctx.from?.name || ctx.from?.email) {

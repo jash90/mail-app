@@ -9,14 +9,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   FlatList,
-  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
 import { useSearchContacts, useSendEmail } from '@/features/gmail/hooks';
 import { generateEmail } from '@/features/ai/api';
-import { useStreamingResponse } from '@/features/ai/local/hooks';
-import { getActiveProviderName } from '@/features/ai/providers';
 import { useAuthStore } from '@/store/authStore';
 import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 
@@ -40,10 +37,6 @@ export default function ComposeScreen() {
 
   const { data: suggestions } = useSearchContacts(debouncedTo);
   const { mutate: send, isPending: sending } = useSendEmail(user?.id ?? '');
-  const { streamingResponse, isGenerating: localGenerating } =
-    useStreamingResponse();
-  const isStreamingLocal =
-    generating && localGenerating && getActiveProviderName() === 'local';
 
   const generateAbortRef = useRef<AbortController | null>(null);
 
@@ -193,24 +186,16 @@ export default function ComposeScreen() {
               <ActivityIndicator size="small" color="white" className="ml-2" />
             )}
           </View>
-          {isStreamingLocal ? (
-            <ScrollView className="h-110 rounded-lg bg-zinc-900 p-3">
-              <Text className="text-base text-white">
-                {streamingResponse || '...'}
-              </Text>
-            </ScrollView>
-          ) : (
-            <TextInput
-              className="h-110 rounded-lg bg-zinc-900 p-3 text-base text-white"
-              placeholder="Write your message, or write text and AI will improve it"
-              placeholderTextColor="#888"
-              value={body}
-              onChangeText={setBody}
-              multiline
-              textAlignVertical="top"
-              selectionColor="#2dd4bf"
-            />
-          )}
+          <TextInput
+            className="h-110 rounded-lg bg-zinc-900 p-3 text-base text-white"
+            placeholder="Write your message, or write text and AI will improve it"
+            placeholderTextColor="#888"
+            value={body}
+            onChangeText={setBody}
+            multiline
+            textAlignVertical="top"
+            selectionColor="#2dd4bf"
+          />
         </View>
         <View className="flex-row justify-between gap-4">
           <Pressable

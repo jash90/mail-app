@@ -4,70 +4,10 @@ import { summaryCache } from '@/db/schema';
 import { and, eq, gt } from 'drizzle-orm';
 import type { ChatMessage, EmailContext } from './types';
 import { formatContext } from './types';
+import { getProvider } from './providers';
 
-const ZAI_API_KEY = process.env.EXPO_PUBLIC_ZAI_API_KEY ?? '';
-if (__DEV__ && !ZAI_API_KEY) {
-  console.warn(
-    '[AI] EXPO_PUBLIC_ZAI_API_KEY is not set — AI features will fail',
-  );
-}
-const ZAI_BASE_URL = 'https://api.z.ai/api/coding/paas/v4';
+export { chatCompletion } from './cloud-api';
 
-interface ZaiResponse {
-  choices: Array<{
-    message: { content: string };
-  }>;
-}
-
-export async function chatCompletion(
-  messages: ChatMessage[],
-  signal?: AbortSignal,
-): Promise<string> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30_000);
-
-  // Link external signal to internal controller
-  const onAbort = () => controller.abort();
-  if (signal) {
-    if (signal.aborted) {
-      controller.abort();
-    } else {
-      signal.addEventListener('abort', onAbort, { once: true });
-    }
-  }
-
-  try {
-    const response = await fetch(`${ZAI_BASE_URL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${ZAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'glm-5',
-        messages,
-        temperature: 0.7,
-        max_tokens: 16384,
-      }),
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(
-        error.error?.message || `Z.AI API error: ${response.status}`,
-      );
-    }
-
-    const data: ZaiResponse = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) throw new Error('Z.AI returned empty response');
-    return content;
-  } finally {
-    clearTimeout(timeout);
-    signal?.removeEventListener('abort', onAbort);
-  }
-}
 
 const SYSTEM_PROMPT = `You are an AI email assistant. Write professional, concise emails.
 - Match the language of the user's input (if they write in Polish, respond in Polish)
@@ -117,17 +57,15 @@ export async function summarizeEmail(
     .filter(Boolean)
     .join('\n');
 
-  const summary = await chatCompletion(
-    [
-      {
-        role: 'system',
-        content:
-          'Summarize the email in 5 sentences. Match the language of the email content. Be concise and informative.',
-      },
-      { role: 'user', content: userMsg },
-    ],
-    signal,
-  );
+  const messages: ChatMessage[] = [
+    {
+      role: 'system',
+      content:
+        'Summarize the email in 5 sentences. Match the language of the email content. Be concise and informative.',
+    },
+    { role: 'user', content: userMsg },
+  ];
+  const summary = await getProvider().generate(messages, signal);
 
   setSummaryCache(threadId, summary);
   return summary;
@@ -177,7 +115,7 @@ export async function generateEmail(
     .filter(Boolean)
     .join('\n\n');
 
-  return chatCompletion(
+  return getProvider().generate(
     [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: userMsg },
@@ -206,7 +144,7 @@ export async function generateReply(
     .filter(Boolean)
     .join('\n\n');
 
-  return chatCompletion(
+  return getProvider().generate(
     [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: userMsg },

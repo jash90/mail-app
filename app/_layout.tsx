@@ -11,7 +11,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { Text, View } from 'react-native';
 import 'react-native-reanimated';
-import { LocalAIProvider } from '@/features/ai/local/LocalAIProvider';
 
 const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
 
@@ -57,18 +56,16 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <LocalAIProvider>
-        <Stack>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="login" options={{ headerShown: false }} />
-          <Stack.Protected guard={isAuthenticated}>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="compose" options={{ headerShown: false }} />
-            <Stack.Screen name="thread/[id]" options={{ headerShown: false }} />
-            <Stack.Screen name="summary" options={{ headerShown: false }} />
-          </Stack.Protected>
-        </Stack>
-      </LocalAIProvider>
+      <Stack>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Protected guard={isAuthenticated}>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="compose" options={{ headerShown: false }} />
+          <Stack.Screen name="thread/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="summary" options={{ headerShown: false }} />
+        </Stack.Protected>
+      </Stack>
     </QueryClientProvider>
   );
 }
