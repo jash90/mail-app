@@ -1,12 +1,13 @@
 import EmailComponent from '@/components/EmailComponent';
 import { ListSkeleton } from '@/components/skeletons';
+import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 import { prefetchSummaries } from '@/features/ai/api';
 import {
-  useThreads,
+  useContactImportance,
   useSync,
   useSyncNextPage,
+  useThreads,
   useTrashThread,
-  useContactImportance,
 } from '@/features/gmail';
 import { threadToEmailProps } from '@/lib/threadTransform';
 import { useAuthStore } from '@/store/authStore';
@@ -18,12 +19,11 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Pressable,
   RefreshControl,
   Text,
-  Pressable,
   View,
 } from 'react-native';
-import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 
 export default function ListScreen() {
   const router = useRouter();
@@ -162,7 +162,7 @@ export default function ListScreen() {
           onPress={() => router.push('/summary')}
         >
           <Icon name="magic-wand" size={18} color="#818cf8" />
-          <Text className="ml-2 font-semibold text-indigo-400">Summary</Text>
+          {/* <Text className="ml-2 font-semibold text-indigo-400">Summary</Text> */}
         </Pressable>
       </View>
 
