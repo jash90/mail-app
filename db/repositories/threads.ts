@@ -89,19 +89,15 @@ export function upsertThreads(threadList: EmailThread[]): void {
         const p = t.participants[i];
         const email = p.email.toLowerCase();
 
-        // Upsert participant
-        tx.insert(participants)
+        // Upsert participant and get ID in one statement (avoids extra SELECT)
+        const row = tx
+          .insert(participants)
           .values({ email, name: p.name })
           .onConflictDoUpdate({
             target: participants.email,
             set: { name: sql`COALESCE(excluded.name, participants.name)` },
           })
-          .run();
-
-        const row = tx
-          .select({ id: participants.id })
-          .from(participants)
-          .where(eq(participants.email, email))
+          .returning({ id: participants.id })
           .get();
 
         if (row) {
