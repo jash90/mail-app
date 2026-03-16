@@ -3,6 +3,8 @@ import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { resetTokens } from '@/features/auth/oauthService';
 import { clearTokenCache } from '@/features/gmail';
+import { clearAllData } from '@/db/client';
+import { queryClient } from '@/app/_layout';
 import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 
 export default function SettingsScreen() {
@@ -12,6 +14,8 @@ export default function SettingsScreen() {
   const clearUser = useAuthStore((s) => s.clearUser);
 
   const handleLogout = () => {
+    clearAllData();
+    queryClient.clear();
     clearUser();
     clearTokenCache();
     resetTokens();

@@ -40,6 +40,7 @@ export default function ListScreen() {
     hasNextPage,
     isFetchingNextPage,
   } = useThreads(accountId, ['INBOX']);
+
   const threads = useMemo(
     () => data?.pages.flatMap((page) => page) ?? [],
     [data],
@@ -69,6 +70,9 @@ export default function ListScreen() {
           console.warn('[ListScreen] prefetchSummaries failed:', err);
         });
       },
+      onError: (err) => {
+        console.error('[ListScreen] Sync failed:', err);
+      },
     });
   }, [syncMutate, refetch, accountId]);
 
@@ -95,14 +99,20 @@ export default function ListScreen() {
     syncNextPageMutate,
   ]);
 
-  const hasAutoSynced = useRef(false);
+  const autoSyncAttempts = useRef(0);
+  const MAX_AUTO_SYNC_ATTEMPTS = 3;
   useEffect(() => {
     if (!accountId) return;
-    if (!isLoading && threads.length === 0 && !hasAutoSynced.current) {
-      hasAutoSynced.current = true;
+    if (
+      !isLoading &&
+      threads.length === 0 &&
+      autoSyncAttempts.current < MAX_AUTO_SYNC_ATTEMPTS &&
+      !sync.isPending
+    ) {
+      autoSyncAttempts.current += 1;
       handleRefresh();
     }
-  }, [accountId, isLoading, threads.length, handleRefresh]);
+  }, [accountId, isLoading, threads.length, handleRefresh, sync.isPending]);
 
   const handleCompose = () => {
     router.push('/compose');
@@ -148,7 +158,17 @@ export default function ListScreen() {
   if (isError) {
     return (
       <StyledSafeAreaView className="flex-1 items-center justify-center bg-black">
-        <Text className="text-red-400">Failed to load emails</Text>
+        <Text className="mb-4 text-red-400">Failed to load emails</Text>
+        <Pressable
+          className="rounded-full bg-white/10 px-6 py-3"
+          onPress={() => {
+            autoSyncAttempts.current = 0;
+            refetch();
+            handleRefresh();
+          }}
+        >
+          <Text className="font-semibold text-white">Try again</Text>
+        </Pressable>
       </StyledSafeAreaView>
     );
   }

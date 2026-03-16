@@ -1,6 +1,7 @@
 import type { SyncState, SyncResult } from '@/types';
 import type { GmailHistoryEvent } from './types';
 import { gmailRequest } from './api';
+import { getLabels } from './labels';
 import { listThreads, batchGetThreads } from './threads';
 import { getSyncState, upsertSyncState } from '@/db/repositories/syncState';
 
@@ -90,6 +91,8 @@ export const performFullSync = async (
   };
 
   try {
+    try { await getLabels(accountId); } catch { /* non-blocking */ }
+
     const { threads, nextPageToken } = await listThreads(accountId, ['INBOX']);
     result.synced_threads = threads.length;
     result.new_sync_state.next_page_token = nextPageToken;

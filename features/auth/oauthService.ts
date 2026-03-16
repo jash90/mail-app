@@ -65,7 +65,8 @@ export async function refreshGmailTokens(
     });
 
     return { access_token: accessToken };
-  } catch {
+  } catch (e) {
+    console.error('[refreshGmailTokens] Token refresh failed:', e);
     return null;
   }
 }

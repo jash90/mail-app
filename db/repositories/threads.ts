@@ -1,13 +1,14 @@
-import { eq, and, inArray, sql, desc, asc } from 'drizzle-orm';
+import { chunk } from '@/lib/chunk';
+import type { EmailParticipant, EmailThread } from '@/types';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '../client';
 import {
-  threads,
-  threadLabels,
+  labels,
   participants,
+  threadLabels,
   threadParticipants,
+  threads,
 } from '../schema';
-import { chunk } from '@/lib/chunk';
-import type { EmailThread, EmailParticipant } from '@/types';
 
 /** SQLite max host parameters — stay well under the 999 limit. */
 const CHUNK_SIZE = 500;
@@ -50,6 +51,20 @@ export function upsertThreads(threadList: EmailThread[]): void {
           },
         })
         .run();
+
+      // Ensure label rows exist so FK on thread_labels is satisfied
+      for (const labelId of t.label_ids) {
+        tx.insert(labels)
+          .values({
+            id: labelId,
+            accountId: t.account_id,
+            providerLabelId: labelId,
+            name: labelId,
+            type: 'system',
+          })
+          .onConflictDoNothing()
+          .run();
+      }
 
       // Replace labels
       tx.delete(threadLabels).where(eq(threadLabels.threadId, t.id)).run();

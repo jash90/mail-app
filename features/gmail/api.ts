@@ -15,6 +15,13 @@ import {
 } from '@/lib/rateLimiter';
 import { useAuthStore } from '@/store/authStore';
 
+/** Hermes doesn't support AbortSignal.timeout() — polyfill with AbortController + setTimeout. */
+const createTimeoutSignal = (ms: number): AbortSignal => {
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), ms);
+  return controller.signal;
+};
+
 // Single cached token — only one account type (gmail) is supported.
 // If multi-account is added, change to Map<string, ...> like refreshPromises.
 let cachedToken: { value: string; expiresAt: number } | null = null;
@@ -98,6 +105,7 @@ export const apiRequestRaw = async (
         Authorization: `Bearer ${token}`,
         ...options.headers,
       },
+      signal: options.signal ?? createTimeoutSignal(30_000),
     });
 
     updateThrottleState(response);

@@ -100,7 +100,7 @@ export const batchGetThreads = async (
         `[Gmail] Failed to fetch thread ${part.contentId}: HTTP ${part.status} — removing from local DB`,
         part.body,
       );
-      try { deleteThreadDb(`${accountId}_${part.contentId}`); } catch { /* non-blocking */ }
+      try { deleteThreadDb(`${accountId}_${part.contentId}`); } catch (e) { console.error('[batchGetThreads] Failed to delete thread:', e); }
     }
   }
 
@@ -109,7 +109,11 @@ export const batchGetThreads = async (
     .filter((t): t is EmailThread => t !== null);
 
   // Persist to SQLite
-  try { upsertThreads(mapped); } catch { /* non-blocking */ }
+  try {
+    upsertThreads(mapped);
+  } catch (e) {
+    console.error('[batchGetThreads] DB upsert failed:', e);
+  }
 
   return mapped;
 };
@@ -160,7 +164,7 @@ export const getThread = async (
     );
     const mapped = mapGmailThreadToEmailThread(accountId, thread);
     if (mapped) {
-      try { upsertThreads([mapped]); } catch { /* non-blocking */ }
+      try { upsertThreads([mapped]); } catch (e) { console.error('[getThread] DB upsert failed:', e); }
     }
     return mapped;
   } catch (error) {

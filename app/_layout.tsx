@@ -21,7 +21,7 @@ const centeredContainerStyle = {
   backgroundColor: '#000',
 };
 
-const queryClient = new QueryClient({
+export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       gcTime: TWENTY_FOUR_HOURS,
