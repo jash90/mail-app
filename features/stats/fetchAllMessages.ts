@@ -65,6 +65,10 @@ function extractStatMessage(msg: GmailMessage): StatMessage {
       p.email.toLowerCase(),
     );
 
+  const listId = getHeader(headers, 'List-Id') || '';
+  const listUnsubscribe = getHeader(headers, 'List-Unsubscribe') || '';
+  const autoSubmitted = getHeader(headers, 'Auto-Submitted') || '';
+
   return {
     id: msg.id,
     from,
@@ -72,6 +76,9 @@ function extractStatMessage(msg: GmailMessage): StatMessage {
     cc: extractEmails('Cc'),
     bcc: extractEmails('Bcc'),
     date: parseInt(msg.internalDate, 10),
+    sizeEstimate: msg.sizeEstimate,
+    isNewsletter: listId !== '' || listUnsubscribe !== '',
+    isAutoReply: autoSubmitted !== '' && autoSubmitted.toLowerCase() !== 'no',
   };
 }
 
@@ -117,7 +124,7 @@ async function fetchBatch(
       .map(
         (id) =>
           `--${boundary}\r\nContent-Type: application/http\r\nContent-ID: <${id}>\r\n\r\n` +
-          `GET /gmail/v1/users/me/threads/${id}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Bcc&metadataHeaders=Subject&metadataHeaders=Date&metadataHeaders=Message-ID&metadataHeaders=In-Reply-To&metadataHeaders=References HTTP/1.1\r\n\r\n`,
+          `GET /gmail/v1/users/me/threads/${id}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Bcc&metadataHeaders=Subject&metadataHeaders=Date&metadataHeaders=Message-ID&metadataHeaders=In-Reply-To&metadataHeaders=References&metadataHeaders=List-Id&metadataHeaders=List-Unsubscribe&metadataHeaders=Auto-Submitted HTTP/1.1\r\n\r\n`,
       )
       .join('') + `--${boundary}--`;
 

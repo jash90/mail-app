@@ -46,6 +46,9 @@ export function upsertMessages(messageList: EmailMessage[]): void {
           headerReferences: msg.headers.references
             ? JSON.stringify(msg.headers.references)
             : null,
+          sizeEstimate: msg.size_estimate ?? null,
+          isNewsletter: msg.is_newsletter ?? false,
+          isAutoReply: msg.is_auto_reply ?? false,
           createdAt: msg.created_at,
           updatedAt: msg.updated_at,
         })
@@ -61,6 +64,9 @@ export function upsertMessages(messageList: EmailMessage[]): void {
             headerMessageId: sql`excluded.header_message_id`,
             headerInReplyTo: sql`excluded.header_in_reply_to`,
             headerReferences: sql`excluded.header_references`,
+            sizeEstimate: sql`excluded.size_estimate`,
+            isNewsletter: sql`excluded.is_newsletter`,
+            isAutoReply: sql`excluded.is_auto_reply`,
             updatedAt: sql`excluded.updated_at`,
           },
         })
@@ -150,6 +156,9 @@ export function upsertStatMessages(
           headerMessageId: null,
           headerInReplyTo: null,
           headerReferences: null,
+          sizeEstimate: sm.sizeEstimate ?? null,
+          isNewsletter: sm.isNewsletter ?? false,
+          isAutoReply: sm.isAutoReply ?? false,
           createdAt,
           updatedAt: createdAt,
         })
@@ -249,6 +258,9 @@ function hydrateMessage(row: typeof messages.$inferSelect): EmailMessage {
         ? JSON.parse(row.headerReferences)
         : undefined,
     },
+    size_estimate: row.sizeEstimate ?? undefined,
+    is_newsletter: row.isNewsletter ?? undefined,
+    is_auto_reply: row.isAutoReply ?? undefined,
     created_at: row.createdAt,
     updated_at: row.updatedAt,
   };

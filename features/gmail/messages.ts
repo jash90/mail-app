@@ -57,6 +57,10 @@ export const parseGmailMessage = (
     const { text, html } = extractBody(message.payload);
     const attachments = extractAttachments(message.id, message.payload);
 
+    const listId = getHeader(headers, 'List-Id') || '';
+    const listUnsubscribe = getHeader(headers, 'List-Unsubscribe') || '';
+    const autoSubmitted = getHeader(headers, 'Auto-Submitted') || '';
+
     return {
       id: `${accountId}_${message.id}`,
       account_id: accountId,
@@ -77,6 +81,9 @@ export const parseGmailMessage = (
         in_reply_to: getHeader(headers, 'In-Reply-To'),
         references: getHeader(headers, 'References')?.split(/\s+/),
       },
+      size_estimate: message.sizeEstimate,
+      is_newsletter: listId !== '' || listUnsubscribe !== '',
+      is_auto_reply: autoSubmitted !== '' && autoSubmitted.toLowerCase() !== 'no',
       created_at: new Date(parseInt(message.internalDate, 10)).toISOString(),
       updated_at: new Date(parseInt(message.internalDate, 10)).toISOString(),
     };

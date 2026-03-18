@@ -62,6 +62,8 @@ export interface EmailThread {
   is_starred: boolean;
   is_archived: boolean;
   is_trashed: boolean;
+  is_newsletter?: boolean;
+  is_auto_reply?: boolean;
   label_ids: string[];
   created_at: string;
   updated_at: string;
@@ -87,6 +89,9 @@ export interface EmailMessage {
     in_reply_to?: string;
     references?: string[];
   };
+  size_estimate?: number;
+  is_newsletter?: boolean;
+  is_auto_reply?: boolean;
   created_at: string;
   updated_at: string;
 }

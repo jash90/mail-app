@@ -8,6 +8,8 @@ type EmailItemProps = {
     subject: string;
     snippet: string;
     isUnread: boolean;
+    isNewsletter?: boolean;
+    isAutoReply?: boolean;
     sentAt: string;
     importance: number; // 1-5
   };
@@ -46,9 +48,28 @@ const EmailComponent: React.FC<EmailItemProps> = ({
       onLongPress={onLongPress}
     >
       <View className="flex-row items-center justify-between">
-        <Text className={`flex-1 text-white ${styles.name} ${weight}`}>
-          {item.name}
-        </Text>
+        <View className="flex-1 flex-row items-center gap-1.5">
+          <Text
+            className={`shrink text-white ${styles.name} ${weight}`}
+            numberOfLines={1}
+          >
+            {item.name}
+          </Text>
+          {item.isNewsletter && (
+            <View className="rounded bg-indigo-900/60 px-1.5 py-0.5">
+              <Text className="text-[9px] font-semibold text-indigo-300">
+                NL
+              </Text>
+            </View>
+          )}
+          {item.isAutoReply && (
+            <View className="rounded bg-amber-900/60 px-1.5 py-0.5">
+              <Text className="text-[9px] font-semibold text-amber-300">
+                Auto
+              </Text>
+            </View>
+          )}
+        </View>
         <Text className="text-right text-xs font-light text-gray-300">
           {item.sentAt}
         </Text>

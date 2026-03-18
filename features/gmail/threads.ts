@@ -2,10 +2,10 @@ import type { EmailThread, CursorPagination } from '@/types';
 import type { GmailThread } from './types';
 import { GMAIL_API } from '@/config/constants';
 import { apiRequestRaw, gmailRequest } from './api';
-import { extractParticipants, cleanHeaderText, cleanSnippet, parseMultipartResponseWithStatus } from './helpers';
+import { extractParticipants, cleanHeaderText, cleanSnippet, getHeader, parseMultipartResponseWithStatus } from './helpers';
 import { upsertThreads, countExistingThreads, filterNewProviderThreadIds, filterStaleProviderThreadIds, deleteThread as deleteThreadDb } from '@/db/repositories/threads';
 
-const THREAD_METADATA_PARAMS = 'format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Date';
+const THREAD_METADATA_PARAMS = 'format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Date&metadataHeaders=List-Id&metadataHeaders=List-Unsubscribe&metadataHeaders=Auto-Submitted';
 
 /**
  * Maps a raw Gmail thread to our normalized EmailThread type.
@@ -29,6 +29,15 @@ export const mapGmailThreadToEmailThread = (
   const isTrashed = thread.messages.some((m) => m.labelIds?.includes('TRASH'));
   const labelIds = [...new Set(thread.messages.flatMap((m) => m.labelIds || []))];
 
+  const isNewsletter = thread.messages.some((m) => {
+    const h = m.payload.headers;
+    return !!(getHeader(h, 'List-Id') || getHeader(h, 'List-Unsubscribe'));
+  });
+  const isAutoReply = thread.messages.some((m) => {
+    const auto = getHeader(m.payload.headers, 'Auto-Submitted') || '';
+    return auto !== '' && auto.toLowerCase() !== 'no';
+  });
+
   return {
     id: `${accountId}_${thread.id}`,
     account_id: accountId,
@@ -42,6 +51,8 @@ export const mapGmailThreadToEmailThread = (
     is_starred: isStarred,
     is_archived: isArchived,
     is_trashed: isTrashed,
+    is_newsletter: isNewsletter,
+    is_auto_reply: isAutoReply,
     label_ids: labelIds,
     created_at: new Date(parseInt(firstMessage.internalDate, 10)).toISOString(),
     updated_at: new Date().toISOString(),

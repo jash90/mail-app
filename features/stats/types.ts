@@ -33,6 +33,10 @@ export interface EmailStats {
   isComplete: boolean;
   failedThreadCount?: number;
   totalListedThreads?: number;
+  totalSizeBytes?: number;
+  avgMessageSizeBytes?: number;
+  newsletterCount?: number;
+  autoReplyCount?: number;
 }
 
 export interface StatsProgress {
@@ -51,4 +55,7 @@ export interface StatMessage {
   cc: string[];
   bcc: string[];
   date: number; // timestamp ms
+  sizeEstimate?: number;
+  isNewsletter?: boolean;
+  isAutoReply?: boolean;
 }

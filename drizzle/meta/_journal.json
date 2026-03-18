@@ -22,6 +22,20 @@
       "when": 1773605027093,
       "tag": "0002_fat_gressill",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1773866483717,
+      "tag": "0003_neat_night_nurse",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1773868698808,
+      "tag": "0004_dry_mathemanic",
+      "breakpoints": true
     }
   ]
 }

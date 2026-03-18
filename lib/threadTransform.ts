@@ -18,6 +18,8 @@ export function threadToEmailProps(
     subject: thread.subject,
     snippet: thread.snippet,
     isUnread: !thread.is_read,
+    isNewsletter: thread.is_newsletter ?? false,
+    isAutoReply: thread.is_auto_reply ?? false,
     sentAt: formatRelativeDateCoarse(thread.last_message_at),
     importance,
   };

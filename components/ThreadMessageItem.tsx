@@ -10,6 +10,8 @@ interface ThreadMessageItemProps {
     from: { email: string };
     body: { html?: string | null; text?: string | null };
     snippet: string;
+    is_newsletter?: boolean;
+    is_auto_reply?: boolean;
     created_at: string;
   };
   isMe: boolean;
@@ -62,11 +64,27 @@ export const ThreadMessageItem = memo(function ThreadMessageItem({
           }}
         />
       </View>
-      <Text
-        className={`mt-2 text-right text-xs ${isMe ? 'text-indigo-200' : 'text-gray-400'}`}
-      >
-        {formatRelativeDateFine(msg.created_at)}
-      </Text>
+      <View className="mt-2 flex-row items-center justify-end gap-1.5">
+        {msg.is_newsletter && (
+          <View className="rounded bg-indigo-900/60 px-1.5 py-0.5">
+            <Text className="text-[9px] font-semibold text-indigo-300">
+              Newsletter
+            </Text>
+          </View>
+        )}
+        {msg.is_auto_reply && (
+          <View className="rounded bg-amber-900/60 px-1.5 py-0.5">
+            <Text className="text-[9px] font-semibold text-amber-300">
+              Auto-reply
+            </Text>
+          </View>
+        )}
+        <Text
+          className={`text-xs ${isMe ? 'text-indigo-200' : 'text-gray-400'}`}
+        >
+          {formatRelativeDateFine(msg.created_at)}
+        </Text>
+      </View>
     </View>
   );
 });

@@ -146,6 +146,34 @@ export default function StatsScreen() {
           />
         </View>
 
+        {(displayStats.newsletterCount != null ||
+          displayStats.totalSizeBytes != null) && (
+          <View className="mt-1 flex-row gap-3">
+            {displayStats.newsletterCount != null && (
+              <StatCard
+                icon="notebook"
+                value={displayStats.newsletterCount}
+                label="Newsletters"
+              />
+            )}
+            {displayStats.autoReplyCount != null && (
+              <StatCard
+                icon="action-redo"
+                value={displayStats.autoReplyCount}
+                label="Auto-replies"
+              />
+            )}
+            {displayStats.avgMessageSizeBytes != null &&
+              displayStats.avgMessageSizeBytes > 0 && (
+                <StatCard
+                  icon="disc"
+                  value={`${Math.round(displayStats.avgMessageSizeBytes / 1024)}K`}
+                  label="Avg size"
+                />
+              )}
+          </View>
+        )}
+
         <ContactRankingList
           title="Top Senders"
           contacts={displayStats.topSenders}
