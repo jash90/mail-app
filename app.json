@@ -50,7 +50,11 @@
       "expo-sqlite",
       "expo-audio",
       "react-native-nitro-archive",
-      ["./plugins/withMinDeploymentTarget", "16.0"]
+      [
+        "./plugins/withMinDeploymentTarget",
+        "16.0"
+      ],
+      "llama.rn"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -12,6 +12,7 @@ import { resetTokens } from '@/features/auth/oauthService';
 import { clearTokenCache } from '@/features/gmail';
 import { clearAllData } from '@/db/client';
 import { TTSService } from '@/features/tts';
+import { LocalModelManager } from '@/features/ai/LocalModelManager';
 import { queryClient } from '@/lib/queryClient';
 import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 
@@ -64,6 +65,8 @@ export default function SettingsScreen() {
           value={user?.email ?? ''}
           editable={false}
         />
+
+        <LocalModelManager />
       </ScrollView>
 
       <View className="gap-3 p-4">

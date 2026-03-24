@@ -38,12 +38,5 @@ export function detectLang(text: string): string {
   const lang1 = ISO3_TO_1[detected] ?? DEFAULT_LANG;
   const finalLang = lang1 in TTS_MODELS ? lang1 : DEFAULT_LANG;
 
-  if (__DEV__) {
-    const snippet = text.length > 80 ? text.slice(0, 80) + '…' : text;
-    console.log(
-      `[detectLang] lang=${finalLang} (franc=${top[0]}) snippet="${snippet}"`,
-    );
-  }
-
   return finalLang;
 }
