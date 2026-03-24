@@ -5,6 +5,7 @@ import { summaryCache } from '@/db/schema';
 import { getSummaryCache, summarizeEmail } from '@/features/ai/api';
 import { useAuthStore } from '@/store/authStore';
 import type { EmailThread } from '@/types';
+import { TTSService } from '@/features/tts';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
 import { useRouter } from 'expo-router';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
@@ -210,8 +211,10 @@ export default function SummaryScreen() {
           <Pressable
             onPress={() => {
               db.delete(summaryCache).run();
+              TTSService.shared().clearCache();
               setItems([]);
               setProcessed(0);
+              console.log('[DEV] Summary + TTS audio cache cleared');
             }}
           >
             <Icon name="trash" size={18} color="#f87171" />

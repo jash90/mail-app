@@ -106,25 +106,17 @@ export default function ListScreen() {
     syncNextPageMutate,
   ]);
 
-  const autoSyncAttempts = useRef(0);
-  const MAX_AUTO_SYNC_ATTEMPTS = 3;
+  const didInitialSync = useRef(false);
 
   useEffect(() => {
-    autoSyncAttempts.current = 0;
+    didInitialSync.current = false;
   }, [accountId]);
 
   useEffect(() => {
-    if (!accountId) return;
-    if (
-      !isLoading &&
-      threads.length === 0 &&
-      autoSyncAttempts.current < MAX_AUTO_SYNC_ATTEMPTS &&
-      !sync.isPending
-    ) {
-      autoSyncAttempts.current += 1;
-      handleRefresh();
-    }
-  }, [accountId, isLoading, threads.length, handleRefresh, sync.isPending]);
+    if (!accountId || didInitialSync.current || sync.isPending) return;
+    didInitialSync.current = true;
+    handleRefresh();
+  }, [accountId, handleRefresh, sync.isPending]);
 
   const handleCompose = () => {
     router.push('/compose');
@@ -183,7 +175,7 @@ export default function ListScreen() {
         <Pressable
           className="rounded-full bg-white/10 px-6 py-3"
           onPress={() => {
-            autoSyncAttempts.current = 0;
+            didInitialSync.current = false;
             refetch();
             handleRefresh();
           }}
