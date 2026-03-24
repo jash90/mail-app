@@ -55,7 +55,10 @@ export function base64Decode(data: string): string {
         .join(''),
     );
   } catch (error) {
-    console.error('[base64Decode] decode failed', { error, dataLength: data.length });
+    console.error('[base64Decode] decode failed', {
+      error,
+      dataLength: data.length,
+    });
     return '';
   }
 }
@@ -79,7 +82,11 @@ export function base64UrlEncode(str: string): string {
 }
 
 const namedEntities: Record<string, string> = {
-  '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'",
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&#39;': "'",
 };
 
 /**

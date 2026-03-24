@@ -30,12 +30,7 @@ const TIER_STYLES = {
   1: { name: 'text-sm', subject: 'text-xs', snippet: 'text-xs text-gray-500' },
 } as const;
 
-const EmailComponent = ({
-  id,
-  item,
-  onPress,
-  onLongPress,
-}: EmailItemProps) => {
+const EmailComponent = ({ id, item, onPress, onLongPress }: EmailItemProps) => {
   const tier = Math.max(
     1,
     Math.min(5, item.importance),

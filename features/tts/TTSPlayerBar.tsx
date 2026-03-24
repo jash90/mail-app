@@ -25,11 +25,10 @@ export const TTSPlayerBar = memo(function TTSPlayerBar({
   prev,
 }: TTSPlayerBarProps) {
   const currentTrack =
-    state.currentIndex >= 0
-      ? state.tracks[state.currentIndex]
-      : null;
+    state.currentIndex >= 0 ? state.tracks[state.currentIndex] : null;
 
-  const hasContent = currentTrack || state.tracks.length > 0 || state.summarizing;
+  const hasContent =
+    currentTrack || state.tracks.length > 0 || state.summarizing;
   if (!hasContent) return null;
 
   return (
@@ -54,9 +53,7 @@ export const TTSPlayerBar = memo(function TTSPlayerBar({
                 hitSlop={HIT_SLOP}
               >
                 <Icon
-                  name={
-                    state.isPlaying ? 'control-pause' : 'control-play'
-                  }
+                  name={state.isPlaying ? 'control-pause' : 'control-play'}
                   size={20}
                   color="#818cf8"
                 />
@@ -102,11 +99,7 @@ export const TTSPlayerBar = memo(function TTSPlayerBar({
             </Text>
           </Pressable>
           {state.summarizing && (
-            <ActivityIndicator
-              size="small"
-              color="#818cf8"
-              className="ml-3"
-            />
+            <ActivityIndicator size="small" color="#818cf8" className="ml-3" />
           )}
         </View>
       )}

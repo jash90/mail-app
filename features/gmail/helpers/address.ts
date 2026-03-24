@@ -22,7 +22,9 @@ export function parseEmailAddress(addressString: string): EmailParticipant {
 /**
  * Parse a comma-separated list of email addresses
  */
-export function parseEmailAddressList(addressString: string): EmailParticipant[] {
+export function parseEmailAddressList(
+  addressString: string,
+): EmailParticipant[] {
   if (!addressString) return [];
   return addressString.split(',').map((a) => parseEmailAddress(a.trim()));
 }
@@ -30,7 +32,9 @@ export function parseEmailAddressList(addressString: string): EmailParticipant[]
 /**
  * Extract unique participants from a list of messages
  */
-export function extractParticipants(messages: GmailMessage[]): EmailParticipant[] {
+export function extractParticipants(
+  messages: GmailMessage[],
+): EmailParticipant[] {
   const participants = new Map<string, EmailParticipant>();
 
   for (const message of messages) {

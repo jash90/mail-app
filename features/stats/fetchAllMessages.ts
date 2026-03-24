@@ -215,7 +215,11 @@ async function fetchBatch(
     }
   }
 
-  return { threads: batchThreads, retryIds, skippedCount: skippedCount + invalidCount };
+  return {
+    threads: batchThreads,
+    retryIds,
+    skippedCount: skippedCount + invalidCount,
+  };
 }
 
 /** Process a queue of thread IDs in BATCH_SIZE chunks. Returns IDs that failed and need retry. */

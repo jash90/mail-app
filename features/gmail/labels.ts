@@ -16,10 +16,16 @@ const mapGmailLabel = (accountId: string, label: GmailLabel): EmailLabel => ({
 
 export const getLabels = async (accountId: string): Promise<EmailLabel[]> => {
   const response = await gmailRequest<{ labels: GmailLabel[] }>('/labels');
-  const mapped = response.labels.map((label) => mapGmailLabel(accountId, label));
+  const mapped = response.labels.map((label) =>
+    mapGmailLabel(accountId, label),
+  );
 
   // Persist to SQLite
-  try { upsertLabelsDb(mapped); } catch { /* non-blocking */ }
+  try {
+    upsertLabelsDb(mapped);
+  } catch {
+    /* non-blocking */
+  }
 
   return mapped;
 };

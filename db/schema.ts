@@ -1,4 +1,11 @@
-import { sqliteTable, text, integer, index, primaryKey, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import {
+  sqliteTable,
+  text,
+  integer,
+  index,
+  primaryKey,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core';
 
 export const threads = sqliteTable(
   'threads',
@@ -11,9 +18,15 @@ export const threads = sqliteTable(
     lastMessageAt: text('last_message_at').notNull(),
     messageCount: integer('message_count').notNull().default(0),
     isRead: integer('is_read', { mode: 'boolean' }).notNull().default(true),
-    isStarred: integer('is_starred', { mode: 'boolean' }).notNull().default(false),
-    isArchived: integer('is_archived', { mode: 'boolean' }).notNull().default(false),
-    isTrashed: integer('is_trashed', { mode: 'boolean' }).notNull().default(false),
+    isStarred: integer('is_starred', { mode: 'boolean' })
+      .notNull()
+      .default(false),
+    isArchived: integer('is_archived', { mode: 'boolean' })
+      .notNull()
+      .default(false),
+    isTrashed: integer('is_trashed', { mode: 'boolean' })
+      .notNull()
+      .default(false),
     isNewsletter: integer('is_newsletter', { mode: 'boolean' }).default(false),
     isAutoReply: integer('is_auto_reply', { mode: 'boolean' }).default(false),
     createdAt: text('created_at').notNull(),
@@ -22,7 +35,11 @@ export const threads = sqliteTable(
   (table) => [
     index('idx_threads_account').on(table.accountId),
     index('idx_threads_last_message').on(table.accountId, table.lastMessageAt),
-    index('idx_threads_unread').on(table.accountId, table.isRead, table.lastMessageAt),
+    index('idx_threads_unread').on(
+      table.accountId,
+      table.isRead,
+      table.lastMessageAt,
+    ),
   ],
 );
 
@@ -149,5 +166,8 @@ export const syncState = sqliteTable('sync_state', {
   historyId: text('history_id'),
   lastSyncedAt: text('last_synced_at'),
   nextPageToken: text('next_page_token'),
-  status: text('status').$type<'idle' | 'syncing' | 'error'>().notNull().default('idle'),
+  status: text('status')
+    .$type<'idle' | 'syncing' | 'error'>()
+    .notNull()
+    .default('idle'),
 });

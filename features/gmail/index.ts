@@ -1,4 +1,10 @@
-export { getAccessToken, gmailRequest, apiRequest, apiRequestRaw, clearTokenCache } from './api';
+export {
+  getAccessToken,
+  gmailRequest,
+  apiRequest,
+  apiRequestRaw,
+  clearTokenCache,
+} from './api';
 export { getLabels, getLabelById } from './labels';
 export { listThreads, getThread, mapGmailThreadToEmailThread } from './threads';
 export { getMessage, getThreadMessages, parseGmailMessage } from './messages';

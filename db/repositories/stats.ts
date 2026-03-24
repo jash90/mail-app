@@ -1,4 +1,8 @@
-import type { ContactStats, EmailStats, ThreadLengthBucket } from '@/features/stats/types';
+import type {
+  ContactStats,
+  EmailStats,
+  ThreadLengthBucket,
+} from '@/features/stats/types';
 import { and, eq, ne, sql } from 'drizzle-orm';
 import { db } from '../client';
 import { messageRecipients, messages, participants, threads } from '../schema';
@@ -11,7 +15,10 @@ function getTimeDistribution(
 ): number[] {
   const rows = db
     .select({
-      bucket: sql<number>`CAST(strftime(${strftimeFormat}, ${messages.createdAt}) AS INTEGER)`.as('bucket'),
+      bucket:
+        sql<number>`CAST(strftime(${strftimeFormat}, ${messages.createdAt}) AS INTEGER)`.as(
+          'bucket',
+        ),
       count: sql<number>`COUNT(*)`.as('count'),
     })
     .from(messages)
@@ -47,18 +54,28 @@ export function getContactImportanceMap(
   userEmail: string,
 ): Map<string, number> {
   const lowerUser = userEmail.toLowerCase();
-  const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
+  const oneYearAgo = new Date(
+    Date.now() - 365 * 24 * 60 * 60 * 1000,
+  ).toISOString();
 
   // Received from each contact
   const received = db
     .select({
       email: messages.fromEmail,
       count: sql<number>`COUNT(*)`.as('cnt'),
-      oldCount: sql<number>`SUM(CASE WHEN ${messages.createdAt} < ${oneYearAgo} THEN 1 ELSE 0 END)`.as('old_cnt'),
-      nlCount: sql<number>`SUM(CASE WHEN COALESCE(${messages.isNewsletter}, 0) = 1 THEN 1 ELSE 0 END)`.as('nl_cnt'),
+      oldCount:
+        sql<number>`SUM(CASE WHEN ${messages.createdAt} < ${oneYearAgo} THEN 1 ELSE 0 END)`.as(
+          'old_cnt',
+        ),
+      nlCount:
+        sql<number>`SUM(CASE WHEN COALESCE(${messages.isNewsletter}, 0) = 1 THEN 1 ELSE 0 END)`.as(
+          'nl_cnt',
+        ),
     })
     .from(messages)
-    .where(and(eq(messages.accountId, accountId), ne(messages.fromEmail, lowerUser)))
+    .where(
+      and(eq(messages.accountId, accountId), ne(messages.fromEmail, lowerUser)),
+    )
     .groupBy(messages.fromEmail)
     .all();
 
@@ -67,7 +84,10 @@ export function getContactImportanceMap(
     .select({
       email: messageRecipients.email,
       count: sql<number>`COUNT(*)`.as('cnt'),
-      oldCount: sql<number>`SUM(CASE WHEN ${messages.createdAt} < ${oneYearAgo} THEN 1 ELSE 0 END)`.as('old_cnt'),
+      oldCount:
+        sql<number>`SUM(CASE WHEN ${messages.createdAt} < ${oneYearAgo} THEN 1 ELSE 0 END)`.as(
+          'old_cnt',
+        ),
     })
     .from(messageRecipients)
     .innerJoin(messages, eq(messages.id, messageRecipients.messageId))
@@ -82,11 +102,18 @@ export function getContactImportanceMap(
     .all();
 
   // Build per-contact sent/received counts
-  const recvMap = new Map<string, { count: number; oldCount: number; nlCount: number }>();
+  const recvMap = new Map<
+    string,
+    { count: number; oldCount: number; nlCount: number }
+  >();
   const sentMap = new Map<string, { count: number; oldCount: number }>();
 
   for (const r of received) {
-    recvMap.set(r.email, { count: r.count, oldCount: r.oldCount ?? 0, nlCount: r.nlCount ?? 0 });
+    recvMap.set(r.email, {
+      count: r.count,
+      oldCount: r.oldCount ?? 0,
+      nlCount: r.nlCount ?? 0,
+    });
   }
   for (const s of sent) {
     sentMap.set(s.email, { count: s.count, oldCount: s.oldCount ?? 0 });
@@ -112,7 +139,7 @@ export function getContactImportanceMap(
     const oldS = sentMap.get(email)?.oldCount ?? 0;
     const nlc = recvMap.get(email)?.nlCount ?? 0;
 
-    const base = (rc > 0 ? sc / rc : sc) + oldR/4 + oldS * 10;
+    const base = (rc > 0 ? sc / rc : sc) + oldR / 4 + oldS * 10;
 
     let multiplier: number;
     // Newsletter detection via List-Id/List-Unsubscribe headers
@@ -172,12 +199,14 @@ export function computeStatsFromDb(
     })
     .from(messages)
     .leftJoin(participants, eq(participants.email, messages.fromEmail))
-    .where(and(
-      eq(messages.accountId, accountId),
-      ne(messages.fromEmail, lowerUser),
-      sql`COALESCE(${messages.isNewsletter}, 0) = 0`,
-      sql`COALESCE(${messages.isAutoReply}, 0) = 0`,
-    ))
+    .where(
+      and(
+        eq(messages.accountId, accountId),
+        ne(messages.fromEmail, lowerUser),
+        sql`COALESCE(${messages.isNewsletter}, 0) = 0`,
+        sql`COALESCE(${messages.isAutoReply}, 0) = 0`,
+      ),
+    )
     .groupBy(messages.fromEmail)
     .orderBy(sql`received_count DESC`)
     .limit(10)
@@ -254,9 +283,10 @@ export function computeStatsFromDb(
       .limit(threadCount % 2 === 0 ? 2 : 1)
       .offset(midOffset)
       .all();
-    median = midRows.length === 2
-      ? (midRows[0].messageCount + midRows[1].messageCount) / 2
-      : midRows[0]?.messageCount ?? 0;
+    median =
+      midRows.length === 2
+        ? (midRows[0].messageCount + midRows[1].messageCount) / 2
+        : (midRows[0]?.messageCount ?? 0);
   }
 
   // Totals

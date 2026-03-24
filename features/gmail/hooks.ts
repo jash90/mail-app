@@ -50,14 +50,16 @@ const useGmailMutation = <TVariables>(
 };
 
 /** Read threads from SQLite with SQL-based sorting and infinite scrolling. */
-export const useThreads = (
-  accountId: string,
-  labelIds: string[] = ['INBOX'],
-) =>
+export const useThreads = (accountId: string, labelIds: string[] = ['INBOX']) =>
   useInfiniteQuery({
     queryKey: gmailKeys.threads(accountId, labelIds, 'recent'),
     queryFn: ({ pageParam }: { pageParam: number }) =>
-      getThreadsPaginated(accountId, { labelIds, sortMode: 'recent', limit: PAGE_SIZE, offset: pageParam }),
+      getThreadsPaginated(accountId, {
+        labelIds,
+        sortMode: 'recent',
+        limit: PAGE_SIZE,
+        offset: pageParam,
+      }),
     initialPageParam: 0,
     getNextPageParam: (lastPage, _allPages, lastPageParam) =>
       lastPage.length === PAGE_SIZE ? lastPageParam + PAGE_SIZE : undefined,
@@ -74,7 +76,9 @@ export const useSyncNextPage = (accountId: string) => {
     onSuccess: (result) => {
       upsertSyncState(accountId, result.new_sync_state);
       if (result.synced_threads > 0) {
-        queryClient.invalidateQueries({ queryKey: gmailKeys.threads(accountId) });
+        queryClient.invalidateQueries({
+          queryKey: gmailKeys.threads(accountId),
+        });
       }
     },
   });
@@ -103,7 +107,9 @@ export const useSync = (accountId: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: gmailKeys.threads(accountId) });
-      queryClient.invalidateQueries({ queryKey: ['contact-importance', accountId] });
+      queryClient.invalidateQueries({
+        queryKey: ['contact-importance', accountId],
+      });
     },
   });
 };
@@ -148,8 +154,12 @@ export const useSendReply = (accountId: string) => {
       data: ComposeEmailData;
     }) => sendReply(accountId, vars.threadId, vars.messageId, vars.data),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: gmailKeys.thread(accountId, variables.threadId) });
-      queryClient.invalidateQueries({ queryKey: gmailKeys.messages(accountId, variables.threadId) });
+      queryClient.invalidateQueries({
+        queryKey: gmailKeys.thread(accountId, variables.threadId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: gmailKeys.messages(accountId, variables.threadId),
+      });
       queryClient.invalidateQueries({ queryKey: gmailKeys.threads(accountId) });
     },
   });

@@ -57,7 +57,14 @@ export function useEmailStats(accountId: string) {
       let batchCount = 0;
       const SNAPSHOT_INTERVAL = 10;
 
-      const { threads, failedCount: failed, skippedCount, totalListedCount, cachedCount, purgedCount } = await fetchAllMessages(
+      const {
+        threads,
+        failedCount: failed,
+        skippedCount,
+        totalListedCount,
+        cachedCount,
+        purgedCount,
+      } = await fetchAllMessages(
         accountId,
         (p) => setProgress(p),
         () => {
@@ -67,7 +74,9 @@ export function useEmailStats(accountId: string) {
             try {
               const snapshot = computeStatsFromDb(accountId, userEmail);
               setStats(snapshot);
-            } catch { /* */ }
+            } catch {
+              /* */
+            }
           }
         },
       );
@@ -76,7 +85,9 @@ export function useEmailStats(accountId: string) {
 
       // Invalidate thread list cache if data changed (new fetches or purged stale threads)
       if (threads.length > 0 || purgedCount > 0) {
-        queryClient.invalidateQueries({ queryKey: gmailKeys.threads(accountId) });
+        queryClient.invalidateQueries({
+          queryKey: gmailKeys.threads(accountId),
+        });
       }
 
       // Always compute final stats from SQLite — even if everything was cached,

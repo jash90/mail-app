@@ -1,6 +1,11 @@
 import { eq, sql, and, like, inArray } from 'drizzle-orm';
 import { db } from '../client';
-import { messages, messageRecipients, attachments, participants } from '../schema';
+import {
+  messages,
+  messageRecipients,
+  attachments,
+  participants,
+} from '../schema';
 import type { EmailMessage, EmailParticipant, EmailAttachment } from '@/types';
 import type { StatMessage } from '@/features/stats/types';
 
@@ -9,14 +14,18 @@ export function purgeOldStatMessages(accountId: string): number {
   const staleIds = db
     .select({ id: messages.id })
     .from(messages)
-    .where(and(eq(messages.accountId, accountId), like(messages.id, '%_stat_%')))
+    .where(
+      and(eq(messages.accountId, accountId), like(messages.id, '%_stat_%')),
+    )
     .all()
     .map((r) => r.id);
 
   if (staleIds.length === 0) return 0;
 
   db.transaction((tx) => {
-    tx.delete(messageRecipients).where(inArray(messageRecipients.messageId, staleIds)).run();
+    tx.delete(messageRecipients)
+      .where(inArray(messageRecipients.messageId, staleIds))
+      .run();
     tx.delete(messages).where(inArray(messages.id, staleIds)).run();
   });
   return staleIds.length;
@@ -77,7 +86,10 @@ export function upsertMessages(messageList: EmailMessage[]): void {
         .where(eq(messageRecipients.messageId, msg.id))
         .run();
 
-      const addRecipients = (list: EmailParticipant[], type: 'to' | 'cc' | 'bcc') => {
+      const addRecipients = (
+        list: EmailParticipant[],
+        type: 'to' | 'cc' | 'bcc',
+      ) => {
         for (const r of list) {
           tx.insert(messageRecipients)
             .values({

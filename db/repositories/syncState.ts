@@ -4,7 +4,11 @@ import { syncState } from '../schema';
 import type { SyncState } from '@/types';
 
 export function getSyncState(accountId: string): SyncState | null {
-  const row = db.select().from(syncState).where(eq(syncState.accountId, accountId)).get();
+  const row = db
+    .select()
+    .from(syncState)
+    .where(eq(syncState.accountId, accountId))
+    .get();
   if (!row) return null;
   return {
     status: row.status,

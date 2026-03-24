@@ -39,7 +39,8 @@ function getState(provider: string): ThrottleState {
 
 // --- Helpers ---
 
-export const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+export const delay = (ms: number) =>
+  new Promise<void>((r) => setTimeout(r, ms));
 
 function abortableDelay(ms: number, signal?: AbortSignal): Promise<void> {
   if (!signal) return delay(ms);
@@ -137,7 +138,9 @@ export async function executeWithRetry<T>(
 
       // Compute delay: prefer Retry-After header, fall back to exponential backoff
       const retryAfterHeader = error.response?.headers.get('retry-after');
-      const retryAfterSec = retryAfterHeader ? parseInt(retryAfterHeader, 10) : NaN;
+      const retryAfterSec = retryAfterHeader
+        ? parseInt(retryAfterHeader, 10)
+        : NaN;
       const delayMs = !isNaN(retryAfterSec)
         ? Math.min(retryAfterSec * 1000 + jitter(), RATE_LIMIT.maxDelayMs)
         : Math.min(

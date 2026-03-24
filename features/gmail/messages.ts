@@ -36,7 +36,11 @@ export const getThreadMessages = async (
   const valid = parsed.filter((m): m is EmailMessage => m !== null);
 
   // Persist to SQLite
-  try { upsertMessages(valid); } catch { /* non-blocking */ }
+  try {
+    upsertMessages(valid);
+  } catch {
+    /* non-blocking */
+  }
 
   return valid;
 };
@@ -83,7 +87,8 @@ export const parseGmailMessage = (
       },
       size_estimate: message.sizeEstimate,
       is_newsletter: listId !== '' || listUnsubscribe !== '',
-      is_auto_reply: autoSubmitted !== '' && autoSubmitted.toLowerCase() !== 'no',
+      is_auto_reply:
+        autoSubmitted !== '' && autoSubmitted.toLowerCase() !== 'no',
       created_at: new Date(parseInt(message.internalDate, 10)).toISOString(),
       updated_at: new Date(parseInt(message.internalDate, 10)).toISOString(),
     };

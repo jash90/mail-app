@@ -15,11 +15,16 @@ export interface EmailContext {
 
 export function formatContext(
   ctx: EmailContext,
-  labels: { recipient: string; sender: string } = { recipient: 'Odbiorca', sender: 'Nadawca' },
+  labels: { recipient: string; sender: string } = {
+    recipient: 'Odbiorca',
+    sender: 'Nadawca',
+  },
 ): string {
   const lines: string[] = [];
   if (ctx.from?.name || ctx.from?.email) {
-    lines.push(`${labels.recipient}: ${ctx.from.name || ''} <${ctx.from.email}>`);
+    lines.push(
+      `${labels.recipient}: ${ctx.from.name || ''} <${ctx.from.email}>`,
+    );
   }
   if (ctx.user?.givenName || ctx.user?.familyName) {
     lines.push(

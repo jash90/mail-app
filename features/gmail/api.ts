@@ -124,7 +124,10 @@ export const apiRequestRaw = async (
     }
 
     if (response.status === 403) {
-      const body = await response.clone().json().catch(() => ({}));
+      const body = await response
+        .clone()
+        .json()
+        .catch(() => ({}));
       const reason = body?.error?.errors?.[0]?.reason;
       if (
         reason === 'rateLimitExceeded' ||

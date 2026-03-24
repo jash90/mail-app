@@ -77,7 +77,8 @@ export function extractAttachments(
         content_id: part.headers?.find((h) => h.name === 'Content-ID')?.value,
         is_inline:
           part.headers?.some(
-            (h) => h.name === 'Content-Disposition' && h.value.includes('inline'),
+            (h) =>
+              h.name === 'Content-Disposition' && h.value.includes('inline'),
           ) || false,
       });
     }

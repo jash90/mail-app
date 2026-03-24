@@ -34,7 +34,8 @@ function buildTrack(t: EmailThread, summary: string): TTSTrack {
     senderName: fixTextEncoding(
       t.participants[0]?.name ?? t.participants[0]?.email ?? 'Unknown',
     ),
-    summarySnippet: summary.length > 80 ? summary.slice(0, 80) + '...' : summary,
+    summarySnippet:
+      summary.length > 80 ? summary.slice(0, 80) + '...' : summary,
     fullSummary: summary,
     lang: detectLang(summary),
   };
@@ -234,7 +235,8 @@ export function useEmailTTSQueue(unreadThreads: EmailThread[]) {
 
   const play = useCallback(async () => {
     if (!tracksRef.current.length) return;
-    const startIndex = currentIndexRef.current >= 0 ? currentIndexRef.current : 0;
+    const startIndex =
+      currentIndexRef.current >= 0 ? currentIndexRef.current : 0;
     await playTrackAt(startIndex);
   }, [playTrackAt]);
 
@@ -273,7 +275,8 @@ export function useEmailTTSQueue(unreadThreads: EmailThread[]) {
 
   const prev = useCallback(async () => {
     if (!tracksRef.current.length) return;
-    const prevIndex = currentIndexRef.current > 0 ? currentIndexRef.current - 1 : 0;
+    const prevIndex =
+      currentIndexRef.current > 0 ? currentIndexRef.current - 1 : 0;
     await playTrackAt(prevIndex);
   }, [playTrackAt]);
 
@@ -287,7 +290,15 @@ export function useEmailTTSQueue(unreadThreads: EmailThread[]) {
       pendingCount: Math.min(unreadThreads.length, MAX_THREADS) - tracks.length,
       summarizing,
     }),
-    [tracks, currentIndex, isPlaying, isLoading, error, unreadThreads.length, summarizing],
+    [
+      tracks,
+      currentIndex,
+      isPlaying,
+      isLoading,
+      error,
+      unreadThreads.length,
+      summarizing,
+    ],
   );
 
   return { state, play, pause, resume, stop, next, prev };

@@ -40,7 +40,9 @@ export function detectLang(text: string): string {
 
   if (__DEV__) {
     const snippet = text.length > 80 ? text.slice(0, 80) + '…' : text;
-    console.log(`[detectLang] lang=${finalLang} (franc=${top[0]}) snippet="${snippet}"`);
+    console.log(
+      `[detectLang] lang=${finalLang} (franc=${top[0]}) snippet="${snippet}"`,
+    );
   }
 
   return finalLang;

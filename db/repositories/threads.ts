@@ -115,7 +115,12 @@ export function upsertThreads(threadList: EmailThread[]): void {
   });
 }
 
-export type SortMode = 'recent' | 'oldest' | 'most_messages' | 'unread_first' | 'starred_first';
+export type SortMode =
+  | 'recent'
+  | 'oldest'
+  | 'most_messages'
+  | 'unread_first'
+  | 'starred_first';
 
 interface PaginationOptions {
   labelIds?: string[];
@@ -155,9 +160,16 @@ export function getThreadsPaginated(
         const results: (typeof threads.$inferSelect)[] = [];
         for (const batch of chunk(labelIds, CHUNK_SIZE)) {
           results.push(
-            ...db.selectDistinct(threadColumns).from(threads)
+            ...db
+              .selectDistinct(threadColumns)
+              .from(threads)
               .innerJoin(threadLabels, eq(threads.id, threadLabels.threadId))
-              .where(and(eq(threads.accountId, accountId), inArray(threadLabels.labelId, batch)))
+              .where(
+                and(
+                  eq(threads.accountId, accountId),
+                  inArray(threadLabels.labelId, batch),
+                ),
+              )
               .all(),
           );
         }
@@ -185,10 +197,14 @@ export function getThreadsPaginated(
         });
         return deduped.slice(offset, offset + limit);
       })()
-    : db.select().from(threads)
+    : db
+        .select()
+        .from(threads)
         .where(eq(threads.accountId, accountId))
         .orderBy(orderBy, desc(threads.lastMessageAt))
-        .limit(limit).offset(offset).all();
+        .limit(limit)
+        .offset(offset)
+        .all();
 
   return hydrateThreads(threadRows);
 }
@@ -272,7 +288,10 @@ export function getThreadCount(accountId: string): number {
 }
 
 /** Quick count check — how many of the candidate IDs already exist locally. */
-export function countExistingThreads(accountId: string, candidateIds: string[]): number {
+export function countExistingThreads(
+  accountId: string,
+  candidateIds: string[],
+): number {
   if (candidateIds.length === 0) return 0;
   return findMatchingProviderThreadIds(accountId, candidateIds).size;
 }
@@ -305,7 +324,10 @@ function findMatchingProviderThreadIds(
 }
 
 /** Filter out provider thread IDs that already exist in local DB — returns only missing ones. */
-export function filterNewProviderThreadIds(accountId: string, candidateIds: string[]): string[] {
+export function filterNewProviderThreadIds(
+  accountId: string,
+  candidateIds: string[],
+): string[] {
   if (candidateIds.length === 0) return [];
   const existingSet = findMatchingProviderThreadIds(accountId, candidateIds);
   return candidateIds.filter((id) => !existingSet.has(id));
@@ -320,13 +342,18 @@ export function filterStaleProviderThreadIds(
   if (candidateIds.length === 0) return [];
   const cutoff = new Date(Date.now() - maxAgeMs).toISOString();
   const freshSet = findMatchingProviderThreadIds(
-    accountId, candidateIds, sql`${threads.updatedAt} > ${cutoff}`,
+    accountId,
+    candidateIds,
+    sql`${threads.updatedAt} > ${cutoff}`,
   );
   return candidateIds.filter((id) => !freshSet.has(id));
 }
 
 /** Remove threads from DB whose providerThreadId is NOT in the given API list (i.e. no longer in INBOX). */
-export function purgeThreadsNotInList(accountId: string, apiThreadIds: string[]): number {
+export function purgeThreadsNotInList(
+  accountId: string,
+  apiThreadIds: string[],
+): number {
   if (apiThreadIds.length === 0) return 0;
 
   // Get all local provider thread IDs for this account
@@ -370,7 +397,10 @@ function hydrateThreads(rows: (typeof threads.$inferSelect)[]): EmailThread[] {
         position: threadParticipants.position,
       })
       .from(threadParticipants)
-      .innerJoin(participants, eq(threadParticipants.participantId, participants.id))
+      .innerJoin(
+        participants,
+        eq(threadParticipants.participantId, participants.id),
+      )
       .where(inArray(threadParticipants.threadId, batch))
       .orderBy(asc(threadParticipants.position))
       .all();
@@ -437,7 +467,10 @@ function hydrateThread(row: typeof threads.$inferSelect): EmailThread {
       name: participants.name,
     })
     .from(threadParticipants)
-    .innerJoin(participants, eq(threadParticipants.participantId, participants.id))
+    .innerJoin(
+      participants,
+      eq(threadParticipants.participantId, participants.id),
+    )
     .where(eq(threadParticipants.threadId, row.id))
     .orderBy(asc(threadParticipants.position))
     .all();

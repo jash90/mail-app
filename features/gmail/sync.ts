@@ -52,9 +52,15 @@ export const performIncrementalSync = async (
           changedThreadIds.add(m.message.threadId);
           result.synced_messages++;
         });
-        event.messagesDeleted?.forEach((m) => changedThreadIds.add(m.message.threadId));
-        event.labelsAdded?.forEach((m) => changedThreadIds.add(m.message.threadId));
-        event.labelsRemoved?.forEach((m) => changedThreadIds.add(m.message.threadId));
+        event.messagesDeleted?.forEach((m) =>
+          changedThreadIds.add(m.message.threadId),
+        );
+        event.labelsAdded?.forEach((m) =>
+          changedThreadIds.add(m.message.threadId),
+        );
+        event.labelsRemoved?.forEach((m) =>
+          changedThreadIds.add(m.message.threadId),
+        );
       }
 
       if (changedThreadIds.size > 0) {
@@ -91,7 +97,11 @@ export const performFullSync = async (
   };
 
   try {
-    try { await getLabels(accountId); } catch { /* non-blocking */ }
+    try {
+      await getLabels(accountId);
+    } catch {
+      /* non-blocking */
+    }
 
     const { threads, nextPageToken } = await listThreads(accountId, ['INBOX']);
     result.synced_threads = threads.length;
@@ -107,9 +117,7 @@ export const performFullSync = async (
 };
 
 /** Fetch the next page of threads from Gmail API using the saved nextPageToken. */
-export const syncNextPage = async (
-  accountId: string,
-): Promise<SyncResult> => {
+export const syncNextPage = async (accountId: string): Promise<SyncResult> => {
   const state = getSyncState(accountId);
   const result: SyncResult = {
     success: true,

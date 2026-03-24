@@ -18,7 +18,9 @@ export const parseMultipartResponseWithStatus = (
     if (part.trim() === '' || part.trim() === '--') continue;
 
     // Extract Content-ID from the outer MIME headers (before the blank line separating headers from body)
-    const contentIdMatch = part.match(/Content-ID:\s*<?\s*response-(.*?)\s*>?/i);
+    const contentIdMatch = part.match(
+      /Content-ID:\s*<?\s*response-(.*?)\s*>?/i,
+    );
     const contentId = contentIdMatch ? contentIdMatch[1].trim() : null;
 
     // Extract HTTP status from the inner HTTP response line
@@ -41,4 +43,3 @@ export const parseMultipartResponseWithStatus = (
 
   return results;
 };
-

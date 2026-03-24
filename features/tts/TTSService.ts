@@ -1,7 +1,14 @@
 import TTSManager from 'react-native-sherpa-onnx-offline-tts';
 import RNFS from 'react-native-fs';
 import { unpack } from 'react-native-nitro-archive';
-import { TTS_MODELS, DEFAULT_LANG, type TTSModel } from './models';
+import {
+  TTS_MODELS,
+  DEFAULT_LANG,
+  getPolishVoiceById,
+  polishVoiceToTTSModel,
+  type TTSModel,
+} from './models';
+import { usePolishVoiceStore } from '@/store/polishVoiceStore';
 
 // Suppress "Sending VolumeUpdate with no listeners" warning from sherpa-onnx
 TTSManager.addVolumeListener(() => {});
@@ -12,6 +19,7 @@ const CACHE_DIR = `${RNFS.DocumentDirectoryPath}/tts-cache`;
 class TTSService {
   private static instance: TTSService | null = null;
   private currentLang: string | null = null;
+  private currentModelName: string | null = null;
   private switching: Promise<void> | null = null;
 
   static shared(): TTSService {
@@ -22,14 +30,28 @@ class TTSService {
   }
 
   private getModel(lang: string): TTSModel {
+    if (__DEV__ && lang === 'pl') {
+      const selectedId = usePolishVoiceStore.getState().selectedVoiceId;
+      if (selectedId) {
+        const voice = getPolishVoiceById(selectedId);
+        if (voice) return polishVoiceToTTSModel(voice);
+      }
+    }
     return TTS_MODELS[lang] ?? TTS_MODELS[DEFAULT_LANG]!;
   }
 
   async ensureModelForLang(lang: string): Promise<void> {
-    if (this.currentLang === lang) return;
+    const model = this.getModel(lang);
+    if (this.currentLang === lang && this.currentModelName === model.modelName)
+      return;
     if (this.switching) await this.switching;
 
-    if (this.currentLang === lang) return;
+    const modelAfterWait = this.getModel(lang);
+    if (
+      this.currentLang === lang &&
+      this.currentModelName === modelAfterWait.modelName
+    )
+      return;
 
     this.switching = this._switchModel(lang);
     try {
@@ -44,12 +66,14 @@ class TTSService {
     if (this.currentLang) {
       TTSManager.deinitialize();
       this.currentLang = null;
+      this.currentModelName = null;
     }
 
     const model = this.getModel(lang);
     await this._ensureModelDownloaded(model);
     this._initializeEngine(model);
     this.currentLang = lang;
+    this.currentModelName = model.modelName;
   }
 
   private async _ensureModelDownloaded(model: TTSModel): Promise<void> {
@@ -141,9 +165,19 @@ class TTSService {
     this.cacheDirReady = true;
   }
 
+  async ensureModelDownloaded(model: TTSModel): Promise<void> {
+    await this._ensureModelDownloaded(model);
+  }
+
+  invalidateCurrentModel(): void {
+    this.currentLang = null;
+    this.currentModelName = null;
+  }
+
   destroy(): void {
     TTSManager.deinitialize();
     this.currentLang = null;
+    this.currentModelName = null;
   }
 }
 

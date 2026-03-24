@@ -8,7 +8,6 @@ import { formatContext } from './types';
 
 export { chatCompletion } from './cloud-api';
 
-
 const SYSTEM_PROMPT = `You are an AI email assistant. Write professional, concise emails.
 - Match the language of the user's input (if they write in Polish, respond in Polish)
 - Keep the tone appropriate for business communication
@@ -36,7 +35,9 @@ export function getSummaryCacheBatch(keys: string[]): Map<string, string> {
   const rows = db
     .select({ key: summaryCache.key, summary: summaryCache.summary })
     .from(summaryCache)
-    .where(and(inArray(summaryCache.key, keys), gt(summaryCache.createdAt, cutoff)))
+    .where(
+      and(inArray(summaryCache.key, keys), gt(summaryCache.createdAt, cutoff)),
+    )
     .all();
   return new Map(rows.map((r) => [r.key, r.summary]));
 }

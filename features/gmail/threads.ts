@@ -2,10 +2,23 @@ import type { EmailThread, CursorPagination } from '@/types';
 import type { GmailThread } from './types';
 import { GMAIL_API } from '@/config/constants';
 import { apiRequestRaw, gmailRequest } from './api';
-import { extractParticipants, cleanHeaderText, cleanSnippet, getHeader, parseMultipartResponseWithStatus } from './helpers';
-import { upsertThreads, countExistingThreads, filterNewProviderThreadIds, filterStaleProviderThreadIds, deleteThread as deleteThreadDb } from '@/db/repositories/threads';
+import {
+  extractParticipants,
+  cleanHeaderText,
+  cleanSnippet,
+  getHeader,
+  parseMultipartResponseWithStatus,
+} from './helpers';
+import {
+  upsertThreads,
+  countExistingThreads,
+  filterNewProviderThreadIds,
+  filterStaleProviderThreadIds,
+  deleteThread as deleteThreadDb,
+} from '@/db/repositories/threads';
 
-const THREAD_METADATA_PARAMS = 'format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Date&metadataHeaders=List-Id&metadataHeaders=List-Unsubscribe&metadataHeaders=Auto-Submitted';
+const THREAD_METADATA_PARAMS =
+  'format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Date&metadataHeaders=List-Id&metadataHeaders=List-Unsubscribe&metadataHeaders=Auto-Submitted';
 
 /**
  * Maps a raw Gmail thread to our normalized EmailThread type.
@@ -21,13 +34,23 @@ export const mapGmailThreadToEmailThread = (
   const firstMessage = thread.messages[0];
   const lastMessage = thread.messages[thread.messages.length - 1];
   const participants = extractParticipants(thread.messages);
-  const subject = cleanHeaderText(firstMessage.payload.headers, 'Subject', '(No Subject)');
+  const subject = cleanHeaderText(
+    firstMessage.payload.headers,
+    'Subject',
+    '(No Subject)',
+  );
 
   const isRead = !thread.messages.some((m) => m.labelIds?.includes('UNREAD'));
-  const isStarred = thread.messages.some((m) => m.labelIds?.includes('STARRED'));
-  const isArchived = !thread.messages.some((m) => m.labelIds?.includes('INBOX'));
+  const isStarred = thread.messages.some((m) =>
+    m.labelIds?.includes('STARRED'),
+  );
+  const isArchived = !thread.messages.some((m) =>
+    m.labelIds?.includes('INBOX'),
+  );
   const isTrashed = thread.messages.some((m) => m.labelIds?.includes('TRASH'));
-  const labelIds = [...new Set(thread.messages.flatMap((m) => m.labelIds || []))];
+  const labelIds = [
+    ...new Set(thread.messages.flatMap((m) => m.labelIds || [])),
+  ];
 
   const isNewsletter = thread.messages.some((m) => {
     const h = m.payload.headers;
@@ -45,7 +68,9 @@ export const mapGmailThreadToEmailThread = (
     subject,
     snippet: cleanSnippet(thread.snippet || lastMessage.snippet || ''),
     participants,
-    last_message_at: new Date(parseInt(lastMessage.internalDate, 10)).toISOString(),
+    last_message_at: new Date(
+      parseInt(lastMessage.internalDate, 10),
+    ).toISOString(),
     message_count: thread.messages.length,
     is_read: isRead,
     is_starred: isStarred,
@@ -74,18 +99,19 @@ export const batchGetThreads = async (
   // Skip threads updated within last 24h
   const staleIds = filterStaleProviderThreadIds(accountId, threadIds);
   if (staleIds.length === 0) {
-     return [];
+    return [];
   }
 
   const boundary = `batch_${Date.now()}`;
 
-  const body = staleIds
-    .map(
-      (id) =>
-        `--${boundary}\r\nContent-Type: application/http\r\nContent-ID: <${id}>\r\n\r\n` +
-        `GET /gmail/v1/users/me/threads/${id}?${THREAD_METADATA_PARAMS} HTTP/1.1\r\n\r\n`,
-    )
-    .join('') + `--${boundary}--`;
+  const body =
+    staleIds
+      .map(
+        (id) =>
+          `--${boundary}\r\nContent-Type: application/http\r\nContent-ID: <${id}>\r\n\r\n` +
+          `GET /gmail/v1/users/me/threads/${id}?${THREAD_METADATA_PARAMS} HTTP/1.1\r\n\r\n`,
+      )
+      .join('') + `--${boundary}--`;
 
   const response = await apiRequestRaw(GMAIL_API.batchUrl, {
     method: 'POST',
@@ -96,11 +122,14 @@ export const batchGetThreads = async (
   });
 
   const responseText = await response.text();
-  const responseBoundary = response.headers
-    .get('content-type')
-    ?.match(/boundary=(.+)/)?.[1] ?? boundary;
+  const responseBoundary =
+    response.headers.get('content-type')?.match(/boundary=(.+)/)?.[1] ??
+    boundary;
 
-  const allParts = parseMultipartResponseWithStatus(responseText, responseBoundary);
+  const allParts = parseMultipartResponseWithStatus(
+    responseText,
+    responseBoundary,
+  );
 
   const successThreads: GmailThread[] = [];
   for (const part of allParts) {
@@ -111,7 +140,11 @@ export const batchGetThreads = async (
         `[Gmail] Failed to fetch thread ${part.contentId}: HTTP ${part.status} — removing from local DB`,
         part.body,
       );
-      try { deleteThreadDb(`${accountId}_${part.contentId}`); } catch (e) { console.error('[batchGetThreads] Failed to delete thread:', e); }
+      try {
+        deleteThreadDb(`${accountId}_${part.contentId}`);
+      } catch (e) {
+        console.error('[batchGetThreads] Failed to delete thread:', e);
+      }
     }
   }
 
@@ -175,7 +208,11 @@ export const getThread = async (
     );
     const mapped = mapGmailThreadToEmailThread(accountId, thread);
     if (mapped) {
-      try { upsertThreads([mapped]); } catch (e) { console.error('[getThread] DB upsert failed:', e); }
+      try {
+        upsertThreads([mapped]);
+      } catch (e) {
+        console.error('[getThread] DB upsert failed:', e);
+      }
     }
     return mapped;
   } catch (error) {
