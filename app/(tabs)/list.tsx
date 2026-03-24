@@ -236,7 +236,7 @@ export default function ListScreen() {
       )}
 
       <Pressable
-        className="absolute right-6 bottom-10 h-16 w-16 items-center justify-center rounded-full bg-white"
+        className="absolute right-6 bottom-5 h-16 w-16 items-center justify-center rounded-full bg-white"
         onPress={handleCompose}
       >
         <Icon name="envelope" size={24} color="black" />
