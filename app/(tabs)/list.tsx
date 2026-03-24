@@ -9,6 +9,7 @@ import {
   useThreads,
   useTrashThread,
 } from '@/features/gmail';
+import { TTSPlayerBar, useEmailTTSQueue } from '@/features/tts';
 import { threadToEmailProps } from '@/lib/threadTransform';
 import { useAuthStore } from '@/store/authStore';
 import type { EmailThread } from '@/types';
@@ -46,6 +47,12 @@ export default function ListScreen() {
     [data],
   );
   const { data: importanceMap } = useContactImportance(accountId, userEmail);
+
+  const unreadThreads = useMemo(
+    () => threads.filter((t) => !t.is_read),
+    [threads],
+  );
+  const tts = useEmailTTSQueue(unreadThreads);
 
   const sync = useSync(accountId);
   const syncNextPage = useSyncNextPage(accountId);
@@ -182,9 +189,18 @@ export default function ListScreen() {
           onPress={() => router.push('/summary')}
         >
           <Icon name="magic-wand" size={18} color="#818cf8" />
-          {/* <Text className="ml-2 font-semibold text-indigo-400">Summary</Text> */}
         </Pressable>
       </View>
+
+      <TTSPlayerBar
+        state={tts.state}
+        play={tts.play}
+        pause={tts.pause}
+        resume={tts.resume}
+        stop={tts.stop}
+        next={tts.next}
+        prev={tts.prev}
+      />
 
       {isLoading ? (
         <ListSkeleton />

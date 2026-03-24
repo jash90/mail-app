@@ -1,5 +1,7 @@
 import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
+import { db } from '@/db/client';
 import { getUnreadThreads } from '@/db/repositories/threads';
+import { summaryCache } from '@/db/schema';
 import { getSummaryCache, summarizeEmail } from '@/features/ai/api';
 import { useAuthStore } from '@/store/authStore';
 import type { EmailThread } from '@/types';
@@ -203,7 +205,18 @@ export default function SummaryScreen() {
         <Pressable onPress={() => router.back()}>
           <Icon name="arrow-left" size={20} color="white" />
         </Pressable>
-        <Text className="text-2xl font-bold text-white">AI Summary</Text>
+        <Text className="flex-1 text-2xl font-bold text-white">AI Summary</Text>
+        {__DEV__ && (
+          <Pressable
+            onPress={() => {
+              db.delete(summaryCache).run();
+              setItems([]);
+              setProcessed(0);
+            }}
+          >
+            <Icon name="trash" size={18} color="#f87171" />
+          </Pressable>
+        )}
       </View>
 
       {total === 0 ? (

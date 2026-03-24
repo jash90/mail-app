@@ -1,5 +1,6 @@
 import { gmailRequest } from './api';
 import { updateThreadFlags } from '@/db/repositories/threads';
+import { TTSService } from '@/features/tts';
 
 const safeModify = async (
   label: string,
@@ -20,7 +21,10 @@ export const markAsRead = async (threadId: string) => {
       method: 'POST',
       body: JSON.stringify({ removeLabelIds: ['UNREAD'] }),
     }));
-  if (ok) try { updateThreadFlags(threadId, { is_read: true }); } catch { /* */ }
+  if (ok) {
+    try { updateThreadFlags(threadId, { is_read: true }); } catch { /* */ }
+    TTSService.shared().deleteEmailAudio(threadId).catch(() => {});
+  }
   return ok;
 };
 
@@ -58,7 +62,10 @@ export const archiveThread = async (threadId: string) => {
 export const trashThread = async (threadId: string) => {
   const ok = await safeModify(`Failed to trash thread ${threadId}`, () =>
     gmailRequest(`/threads/${threadId}/trash`, { method: 'POST' }));
-  if (ok) try { updateThreadFlags(threadId, { is_trashed: true }); } catch { /* */ }
+  if (ok) {
+    try { updateThreadFlags(threadId, { is_trashed: true }); } catch { /* */ }
+    TTSService.shared().deleteEmailAudio(threadId).catch(() => {});
+  }
   return ok;
 };
 
