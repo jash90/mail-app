@@ -1,9 +1,10 @@
-import { View, Text, TextInput, Pressable, ScrollView } from 'react-native';
+import { Alert, View, Text, TextInput, Pressable, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { resetTokens } from '@/features/auth/oauthService';
 import { clearTokenCache } from '@/features/gmail';
 import { clearAllData } from '@/db/client';
+import { TTSService } from '@/features/tts';
 import { queryClient } from '@/app/_layout';
 import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 
@@ -20,6 +21,25 @@ export default function SettingsScreen() {
     clearTokenCache();
     resetTokens();
     router.replace('/');
+  };
+
+  const handleDeleteAll = () => {
+    Alert.alert(
+      'Usuń wszystkie dane',
+      'Wszystkie lokalne dane (e-maile, podsumowania, modele TTS) zostaną usunięte i nastąpi wylogowanie. Czy kontynuować?',
+      [
+        { text: 'Anuluj', style: 'cancel' },
+        {
+          text: 'Usuń i wyloguj',
+          style: 'destructive',
+          onPress: async () => {
+            await TTSService.shared().clearCache();
+            TTSService.shared().destroy();
+            handleLogout();
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -39,10 +59,18 @@ export default function SettingsScreen() {
         />
       </ScrollView>
 
-      <View className="p-4">
+      <View className="gap-3 p-4">
         <Pressable className="rounded-2xl bg-white p-4" onPress={handleLogout}>
           <Text className="text-center text-lg font-semibold text-black">
             Logout
+          </Text>
+        </Pressable>
+        <Pressable
+          className="rounded-2xl bg-red-600 p-4"
+          onPress={handleDeleteAll}
+        >
+          <Text className="text-center text-lg font-semibold text-white">
+            Usuń dane i wyloguj
           </Text>
         </Pressable>
       </View>
