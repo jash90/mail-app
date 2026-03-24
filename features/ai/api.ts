@@ -65,6 +65,7 @@ export async function summarizeEmail(
     },
     { role: 'user', content: userMsg },
   ];
+
   const summary = await getProvider().generate(messages, signal);
 
   setSummaryCache(threadId, summary);

@@ -1,3 +1,4 @@
+import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 import { getUnreadThreads } from '@/db/repositories/threads';
 import { getSummaryCache, summarizeEmail } from '@/features/ai/api';
 import { useAuthStore } from '@/store/authStore';
@@ -8,11 +9,10 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Text,
   Pressable,
+  Text,
   View,
 } from 'react-native';
-import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 
 const listContentStyle = { paddingHorizontal: 16, paddingBottom: 32 } as const;
 

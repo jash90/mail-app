@@ -19,7 +19,7 @@ export async function chatCompletion(
   signal?: AbortSignal,
 ): Promise<string> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30_000);
+  const timeout = setTimeout(() => controller.abort(), 300_000);
 
   // Link external signal to internal controller
   const onAbort = () => controller.abort();
@@ -39,10 +39,9 @@ export async function chatCompletion(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'glm-5',
+        model: 'glm-4.7-flashx',
         messages,
-        temperature: 0.7,
-        max_tokens: 16384,
+        temperature: 0.7
       }),
       signal: controller.signal,
     });
