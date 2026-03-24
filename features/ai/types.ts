@@ -35,8 +35,8 @@ export const LOCAL_MODELS: LocalModel[] = [
     id: 'qwen3-4b',
     label: 'Qwen 3 4B (Alibaba)',
     filename: 'Qwen3-4B-Q4_K_M.gguf',
-    url: 'https://huggingface.co/bartowski/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf',
-    sizeMB: 2700,
+    url: 'https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf',
+    sizeMB: 2500,
   },
 ];
 

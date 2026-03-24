@@ -11,7 +11,10 @@ function getModelPath(filename: string): string {
 export function isModelDownloaded(modelId: string): boolean {
   const model = LOCAL_MODELS.find((m) => m.id === modelId);
   if (!model) return false;
-  return new File(MODELS_DIR, model.filename).exists;
+  const file = new File(MODELS_DIR, model.filename);
+  if (!file.exists) return false;
+  const expectedBytes = model.sizeMB * 1_048_576;
+  return file.size >= expectedBytes * 0.9;
 }
 
 export async function downloadModel(
@@ -26,7 +29,12 @@ export async function downloadModel(
   }
 
   const file = new File(MODELS_DIR, model.filename);
-  if (file.exists) return;
+  const expectedBytes = model.sizeMB * 1_048_576;
+
+  if (file.exists) {
+    if (file.size >= expectedBytes * 0.9) return;
+    file.delete();
+  }
 
   const download = createDownloadResumable(model.url, file.uri, {}, (p) => {
     if (p.totalBytesExpectedToWrite > 0) {
@@ -36,6 +44,13 @@ export async function downloadModel(
 
   const result = await download.downloadAsync();
   if (!result) throw new Error('Pobieranie anulowane');
+
+  if (file.size < expectedBytes * 0.9) {
+    file.delete();
+    throw new Error(
+      `Plik modelu jest nieprawidłowy (${Math.round(file.size / 1_048_576)} MB zamiast ~${model.sizeMB} MB). Spróbuj ponownie.`,
+    );
+  }
 }
 
 export function deleteModel(modelId: string): void {
