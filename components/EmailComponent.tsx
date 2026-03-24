@@ -1,7 +1,8 @@
-import React from 'react';
+import { memo } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 type EmailItemProps = {
+  id: string;
   item: {
     name: string;
     email: string;
@@ -13,8 +14,8 @@ type EmailItemProps = {
     sentAt: string;
     importance: number; // 1-5
   };
-  onPress?: () => void;
-  onLongPress?: () => void;
+  onPress?: (id: string) => void;
+  onLongPress?: (id: string) => void;
 };
 
 const TIER_STYLES = {
@@ -29,11 +30,12 @@ const TIER_STYLES = {
   1: { name: 'text-sm', subject: 'text-xs', snippet: 'text-xs text-gray-500' },
 } as const;
 
-const EmailComponent: React.FC<EmailItemProps> = ({
+const EmailComponent = ({
+  id,
   item,
   onPress,
   onLongPress,
-}) => {
+}: EmailItemProps) => {
   const tier = Math.max(
     1,
     Math.min(5, item.importance),
@@ -44,8 +46,8 @@ const EmailComponent: React.FC<EmailItemProps> = ({
   return (
     <Pressable
       className="w-full border-b border-gray-700 px-1 py-3"
-      onPress={onPress}
-      onLongPress={onLongPress}
+      onPress={() => onPress?.(id)}
+      onLongPress={() => onLongPress?.(id)}
     >
       <View className="flex-row items-center justify-between">
         <View className="flex-1 flex-row items-center gap-1.5">
@@ -84,4 +86,4 @@ const EmailComponent: React.FC<EmailItemProps> = ({
   );
 };
 
-export default EmailComponent;
+export default memo(EmailComponent);

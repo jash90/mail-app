@@ -7,12 +7,11 @@ import { useAuthStore } from '@/store/authStore';
 import { db } from '@/db/client';
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import migrations from '../drizzle/migrations';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@/lib/queryClient';
 import { Stack } from 'expo-router';
 import { Text, View } from 'react-native';
 import 'react-native-reanimated';
-
-const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
 
 const centeredContainerStyle = {
   flex: 1,
@@ -20,14 +19,6 @@ const centeredContainerStyle = {
   alignItems: 'center' as const,
   backgroundColor: '#000',
 };
-
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      gcTime: TWENTY_FOUR_HOURS,
-    },
-  },
-});
 
 export default function RootLayout() {
   const { success: migrationSuccess, error: migrationError } = useMigrations(

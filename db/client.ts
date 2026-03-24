@@ -10,16 +10,26 @@ export const db = drizzle(expoDb, { schema });
 export type Database = typeof db;
 
 export function clearAllData() {
-  expoDb.execSync('PRAGMA foreign_keys = OFF');
-  expoDb.execSync('DELETE FROM summary_cache');
-  expoDb.execSync('DELETE FROM attachments');
-  expoDb.execSync('DELETE FROM message_recipients');
-  expoDb.execSync('DELETE FROM thread_labels');
-  expoDb.execSync('DELETE FROM thread_participants');
-  expoDb.execSync('DELETE FROM messages');
-  expoDb.execSync('DELETE FROM threads');
-  expoDb.execSync('DELETE FROM participants');
-  expoDb.execSync('DELETE FROM labels');
-  expoDb.execSync('DELETE FROM sync_state');
-  expoDb.execSync('PRAGMA foreign_keys = ON');
+  try {
+    expoDb.execSync('PRAGMA foreign_keys = OFF');
+    expoDb.execSync(`
+      BEGIN;
+      DELETE FROM summary_cache;
+      DELETE FROM attachments;
+      DELETE FROM message_recipients;
+      DELETE FROM thread_labels;
+      DELETE FROM thread_participants;
+      DELETE FROM messages;
+      DELETE FROM threads;
+      DELETE FROM participants;
+      DELETE FROM labels;
+      DELETE FROM sync_state;
+      COMMIT;
+    `);
+  } catch (error) {
+    expoDb.execSync('ROLLBACK');
+    throw error;
+  } finally {
+    expoDb.execSync('PRAGMA foreign_keys = ON');
+  }
 }

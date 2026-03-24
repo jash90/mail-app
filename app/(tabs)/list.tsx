@@ -14,12 +14,12 @@ import { threadToEmailProps } from '@/lib/threadTransform';
 import { useAuthStore } from '@/store/authStore';
 import type { EmailThread } from '@/types';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
+import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   Pressable,
   RefreshControl,
   Text,
@@ -108,6 +108,11 @@ export default function ListScreen() {
 
   const autoSyncAttempts = useRef(0);
   const MAX_AUTO_SYNC_ATTEMPTS = 3;
+
+  useEffect(() => {
+    autoSyncAttempts.current = 0;
+  }, [accountId]);
+
   useEffect(() => {
     if (!accountId) return;
     if (
@@ -151,15 +156,24 @@ export default function ListScreen() {
     [router],
   );
 
+  const handleDeleteById = useCallback(
+    (id: string) => {
+      const thread = threads.find((t) => t.id === id);
+      if (thread) handleDelete(thread);
+    },
+    [threads, handleDelete],
+  );
+
   const renderItem = useCallback(
     ({ item }: { item: EmailThread }) => (
       <EmailComponent
+        id={item.id}
         item={threadToEmailProps(item, importanceMap)}
-        onPress={() => handleThread(item.id)}
-        onLongPress={() => handleDelete(item)}
+        onPress={handleThread}
+        onLongPress={handleDeleteById}
       />
     ),
-    [importanceMap, handleThread, handleDelete],
+    [importanceMap, handleThread, handleDeleteById],
   );
 
   if (isError) {
@@ -205,7 +219,7 @@ export default function ListScreen() {
       {isLoading ? (
         <ListSkeleton />
       ) : (
-        <FlatList
+        <FlashList
           data={threads}
           keyExtractor={(item) => item.id}
           refreshControl={

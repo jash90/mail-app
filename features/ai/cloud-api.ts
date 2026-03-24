@@ -1,5 +1,8 @@
 import type { ChatMessage } from './types';
+import { AI } from '@/config/constants';
 
+// SECURITY: EXPO_PUBLIC_ vars are embedded in the JS bundle.
+// Acceptable for personal use; production apps should proxy through a backend.
 const ZAI_API_KEY = process.env.EXPO_PUBLIC_ZAI_API_KEY ?? '';
 if (__DEV__ && !ZAI_API_KEY) {
   console.warn(
@@ -19,7 +22,7 @@ export async function chatCompletion(
   signal?: AbortSignal,
 ): Promise<string> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 300_000);
+  const timeout = setTimeout(() => controller.abort(), AI.timeoutMs);
 
   // Link external signal to internal controller
   const onAbort = () => controller.abort();
@@ -39,9 +42,9 @@ export async function chatCompletion(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'glm-4.7-flashx',
+        model: AI.model,
         messages,
-        temperature: 0.7
+        temperature: AI.temperature,
       }),
       signal: controller.signal,
     });

@@ -5,7 +5,7 @@ import { resetTokens } from '@/features/auth/oauthService';
 import { clearTokenCache } from '@/features/gmail';
 import { clearAllData } from '@/db/client';
 import { TTSService } from '@/features/tts';
-import { queryClient } from '@/app/_layout';
+import { queryClient } from '@/lib/queryClient';
 import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 
 export default function SettingsScreen() {
