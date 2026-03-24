@@ -1,10 +1,10 @@
 import { db } from '@/db/client';
 import { getUnreadThreads } from '@/db/repositories/threads';
 import { summaryCache } from '@/db/schema';
-import { and, eq, gt } from 'drizzle-orm';
+import { and, eq, gt, inArray } from 'drizzle-orm';
+import { getProvider } from './providers';
 import type { ChatMessage, EmailContext } from './types';
 import { formatContext } from './types';
-import { getProvider } from './providers';
 
 export { chatCompletion } from './cloud-api';
 
@@ -28,6 +28,17 @@ export function getSummaryCache(key: string): string | null {
     .where(and(eq(summaryCache.key, key), gt(summaryCache.createdAt, cutoff)))
     .get();
   return row?.summary ?? null;
+}
+
+export function getSummaryCacheBatch(keys: string[]): Map<string, string> {
+  if (!keys.length) return new Map();
+  const cutoff = new Date(Date.now() - ONE_DAY_MS).toISOString();
+  const rows = db
+    .select({ key: summaryCache.key, summary: summaryCache.summary })
+    .from(summaryCache)
+    .where(and(inArray(summaryCache.key, keys), gt(summaryCache.createdAt, cutoff)))
+    .all();
+  return new Map(rows.map((r) => [r.key, r.summary]));
 }
 
 function setSummaryCache(key: string, summary: string): void {
@@ -61,7 +72,7 @@ export async function summarizeEmail(
     {
       role: 'system',
       content:
-        'Summarize the email in 5 sentences. Match the language of the email content. Be concise and informative.',
+        'Summarize the email in max 500 characters. If the email is in Polish, summarize in Polish. Otherwise summarize in English. Be concise and informative.',
     },
     { role: 'user', content: userMsg },
   ];
