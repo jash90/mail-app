@@ -1,25 +1,30 @@
 # Mail App
 
-A mobile email client built with Expo and React Native that connects to Gmail via the Google API.
+React Native email client built with Expo SDK 54. Connects to Gmail API, supports AI-powered email summaries and generation (cloud + on-device), offline TTS playlist for unread emails, and email statistics.
 
 ## Tech Stack
 
-- **Framework:** Expo SDK 54, React Native 0.81, React 19
+- **Framework:** Expo SDK 54, React Native, React 19
 - **Routing:** Expo Router (file-based, typed routes)
 - **Styling:** Tailwind CSS via UniWind
-- **State:** Zustand (auth), React Query (server data, MMKV persistence)
+- **State:** Zustand + SecureStore (auth, settings), React Query (server data)
+- **Database:** SQLite + Drizzle ORM (WAL mode, auto-migrations)
 - **Auth:** Google Sign-In with OAuth 2.0
-- **AI:** Z.AI for email generation
+- **AI Cloud:** Z.AI (glm-4.7-flashx) for email generation and summaries
+- **AI Local:** llama.rn (llama.cpp) with GGUF models (Llama 3.2 3B, Bielik 4.5B, Qwen 3 4B)
+- **TTS:** Offline Polish/English text-to-speech via sherpa-onnx (VITS-Piper models)
 
 ## Features
 
 - Google OAuth login
-- Gmail inbox with thread view
-- Compose and send emails
-- AI-assisted email drafting
+- Gmail inbox with thread view and incremental sync (History API)
+- Compose, reply, and send emails
+- AI-assisted email drafting and summaries (cloud or on-device)
+- On-device LLM inference with downloadable GGUF models
+- Offline TTS playlist for unread email summaries (auto language detection)
+- Email statistics and contact ranking
 - Label management
-- Contact autocomplete
-- Offline-ready with MMKV-backed query cache
+- Rate-limited Gmail API with exponential backoff
 
 ## Getting Started
 
@@ -29,48 +34,65 @@ A mobile email client built with Expo and React Native that connects to Gmail vi
    bun install
    ```
 
-2. Start the dev server
+2. Set up environment
 
    ```bash
-   bun start
+   cp .env.example .env
+   # Add EXPO_PUBLIC_ZAI_API_KEY for cloud AI features
    ```
 
-3. Run on a device or simulator
+3. Run on device or simulator (development build required)
 
    ```bash
    bun run ios
    bun run android
    ```
 
-> **Note:** Google Sign-In requires a development build (`expo run:ios` / `expo run:android`). It does not work in Expo Go.
+> **Note:** Expo Go is not supported. Native modules (Google Sign-In, llama.rn, sherpa-onnx TTS) require a development build via `npx expo run:ios` or EAS Build.
 
 ## Project Structure
 
 ```
-app/                  # Screens (Expo Router file-based routing)
-  _layout.tsx         # Root layout with auth guard
-  index.tsx           # Splash / loading
-  login.tsx           # Google sign-in
-  list.tsx            # Inbox
-  compose.tsx         # Compose email
-  settings.tsx        # Settings
-  thread/[id].tsx     # Thread detail
-components/           # Shared UI components
-config/               # App constants
+app/                    # Screens (Expo Router file-based routing)
+  _layout.tsx           # Root layout: DB migrations, auth guard, providers
+  (tabs)/               # Bottom tabs: Inbox, Stats, Settings
+  thread/[id].tsx       # Thread detail
+  compose.tsx           # Compose email
+  summary.tsx           # AI email summaries
 features/
-  ai/                 # AI email generation (Z.AI)
-  auth/               # Google OAuth service
-  gmail/              # Gmail API: messages, threads, labels, contacts, sync
-store/                # Zustand auth store
-types/                # Shared TypeScript types
+  ai/                   # AI providers (cloud Z.AI + local llama.rn)
+    providers/           # Cloud and local provider implementations
+    LocalModelManager.tsx # Model download/management UI
+    modelDownloader.ts   # GGUF model download from HuggingFace
+  auth/                 # Google OAuth service
+  gmail/                # Gmail API: messages, threads, labels, sync, batch ops
+  stats/                # Bulk email fetching, contact ranking
+  tts/                  # Offline TTS: service, queue, player, language detection
+db/
+  schema.ts             # Drizzle ORM schema (9 tables)
+  repositories/         # Data access layer per entity
+store/                  # Zustand stores (auth, AI settings, TTS voice)
+lib/                    # Rate limiter, query client
+drizzle/                # SQL migrations
 ```
 
 ## Scripts
 
 | Command | Description |
 |---------|-------------|
-| `bun start` | Start Expo dev server |
-| `bun run ios` | Run on iOS |
-| `bun run android` | Run on Android |
+| `bun start` | Start Expo dev server (Metro) |
+| `bun run ios` | Build and run on iOS simulator |
+| `bun run android` | Build and run on Android emulator |
 | `bun run lint` | Lint with ESLint |
 | `bun run format` | Format with Prettier |
+| `bun run format:check` | Check formatting |
+
+## Local AI Models
+
+Downloadable in Settings. Models are stored on-device and run inference via llama.cpp (Metal GPU on iOS).
+
+| Model | Size | Strengths |
+|-------|------|-----------|
+| Llama 3.2 3B (Meta) | ~2.0 GB | Fast, good general quality |
+| Bielik 4.5B v3.0 (PL) | ~2.9 GB | Polish-tuned instruction model |
+| Qwen 3 4B (Alibaba) | ~2.7 GB | Strong multilingual + reasoning |
