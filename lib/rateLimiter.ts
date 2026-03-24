@@ -1,3 +1,4 @@
+import { Sentry } from '@/lib/sentry';
 import { RATE_LIMIT } from '@/config/constants';
 
 // --- Error types ---
@@ -129,6 +130,11 @@ export async function executeWithRetry<T>(
       }
 
       if (error instanceof NonRetryableError || attempt === maxRetries) {
+        if (attempt === maxRetries && error instanceof RetryableError) {
+          Sentry.captureException(error, {
+            extra: { provider, attempt, maxRetries },
+          });
+        }
         throw error;
       }
 

@@ -55,7 +55,8 @@
         "./plugins/withMinDeploymentTarget",
         "16.0"
       ],
-      "llama.rn"
+      "llama.rn",
+      "@sentry/react-native/expo"
     ],
     "experiments": {
       "typedRoutes": true,

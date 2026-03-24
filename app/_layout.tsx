@@ -3,6 +3,9 @@ global.Buffer = global.Buffer || Buffer;
 
 import '../global.css';
 
+import { initSentry, Sentry } from '@/lib/sentry';
+initSentry();
+
 import { useAuthStore } from '@/store/authStore';
 import { initializeTokens } from '@/features/auth/oauthService';
 import { db } from '@/db/client';
@@ -24,7 +27,7 @@ const centeredContainerStyle = {
   backgroundColor: '#000',
 };
 
-export default function RootLayout() {
+function RootLayout() {
   const { success: migrationSuccess, error: migrationError } = useMigrations(
     db,
     migrations,
@@ -36,6 +39,12 @@ export default function RootLayout() {
       initializeTokens().catch(console.error);
     }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (migrationError) {
+      Sentry.captureException(migrationError);
+    }
+  }, [migrationError]);
 
   if (migrationError) {
     return (
@@ -72,3 +81,5 @@ export default function RootLayout() {
     </PostHogProvider>
   );
 }
+
+export default Sentry.wrap(RootLayout);

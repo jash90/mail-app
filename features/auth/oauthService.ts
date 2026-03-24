@@ -1,3 +1,4 @@
+import { Sentry } from '@/lib/sentry';
 import { GoogleUser } from '@/store/authStore';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as SecureStore from 'expo-secure-store';
@@ -73,6 +74,7 @@ export async function refreshGmailTokens(): Promise<{
 
     return { access_token: accessToken, expiry_time: expiryTime };
   } catch (e) {
+    Sentry.captureException(e);
     console.error('[refreshGmailTokens] Token refresh failed:', e);
     return null;
   }

@@ -1,3 +1,4 @@
+import { Sentry } from '@/lib/sentry';
 import { GMAIL_API } from '@/config/constants';
 import {
   getStoredTokens,
@@ -35,6 +36,7 @@ export const clearTokenCache = () => {
 };
 
 const handleAuthFailure = async () => {
+  Sentry.captureMessage('auth_failure_token_refresh', 'warning');
   const refreshed = await refreshGmailTokens();
   if (refreshed) {
     cachedToken = {
@@ -127,6 +129,7 @@ export const apiRequestRaw = async (
     updateThrottleState(response);
 
     if (response.status === 401) {
+      Sentry.captureMessage('gmail_api_401_unauthorized', 'warning');
       await handleAuthFailure();
       throw new NonRetryableError(
         'Gmail session expired. Please re-authenticate.',

@@ -1,5 +1,6 @@
 import { storeTokens, TOKEN_LIFETIME_MS } from '@/features/auth/oauthService';
 import { analytics } from '@/lib/analytics';
+import { Sentry } from '@/lib/sentry';
 import { useAuthStore } from '@/store/authStore';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { useRouter } from 'expo-router';
@@ -47,6 +48,7 @@ export default function LoginScreen() {
         });
 
         setUser(userPayload);
+        Sentry.setUser({ id: userPayload.id, email: userPayload.email });
         analytics.login(userPayload.id, userPayload.email);
         router.replace('/(tabs)/list');
       }
