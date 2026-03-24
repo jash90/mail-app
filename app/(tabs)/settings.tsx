@@ -11,6 +11,7 @@ import { useAuthStore } from '@/store/authStore';
 import { resetTokens } from '@/features/auth/oauthService';
 import { clearTokenCache } from '@/features/gmail';
 import { clearAllData } from '@/db/client';
+import { analytics } from '@/lib/analytics';
 import { TTSService } from '@/features/tts';
 import { LocalModelManager } from '@/features/ai/LocalModelManager';
 import { queryClient } from '@/lib/queryClient';
@@ -23,6 +24,7 @@ export default function SettingsScreen() {
   const clearUser = useAuthStore((s) => s.clearUser);
 
   const handleLogout = () => {
+    analytics.logout();
     clearAllData();
     queryClient.clear();
     clearUser();

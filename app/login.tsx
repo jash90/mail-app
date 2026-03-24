@@ -1,4 +1,5 @@
 import { storeTokens, TOKEN_LIFETIME_MS } from '@/features/auth/oauthService';
+import { analytics } from '@/lib/analytics';
 import { useAuthStore } from '@/store/authStore';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { useRouter } from 'expo-router';
@@ -46,6 +47,7 @@ export default function LoginScreen() {
         });
 
         setUser(userPayload);
+        analytics.login(userPayload.id, userPayload.email);
         router.replace('/(tabs)/list');
       }
     } catch (error: unknown) {

@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
 import { useSearchContacts, useSendEmail } from '@/features/gmail/hooks';
 import { generateEmail } from '@/features/ai/api';
+import { analytics } from '@/lib/analytics';
 import { useAuthStore } from '@/store/authStore';
 import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 
@@ -75,6 +76,7 @@ export default function ComposeScreen() {
       );
       if (controller.signal.aborted) return;
       setBody(result);
+      analytics.aiEmailGenerated();
     } catch (err) {
       if (controller.signal.aborted) return;
       console.warn('[ComposeScreen] AI generation failed:', err);
@@ -90,7 +92,10 @@ export default function ComposeScreen() {
     send(
       { to: [{ name: toName || null, email: to }], subject, body },
       {
-        onSuccess: () => router.back(),
+        onSuccess: () => {
+          analytics.emailSent();
+          router.back();
+        },
         onError: () => Alert.alert('Error', 'Failed to send email.'),
       },
     );

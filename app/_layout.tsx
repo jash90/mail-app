@@ -10,6 +10,8 @@ import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import migrations from '../drizzle/migrations';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
+import { PostHogProvider } from 'posthog-react-native';
+import { posthog } from '@/lib/posthog';
 import { Stack } from 'expo-router';
 import { useEffect } from 'react';
 import { Text, View } from 'react-native';
@@ -54,17 +56,19 @@ export default function RootLayout() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <Stack>
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Protected guard={isAuthenticated}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="compose" options={{ headerShown: false }} />
-          <Stack.Screen name="thread/[id]" options={{ headerShown: false }} />
-          <Stack.Screen name="summary" options={{ headerShown: false }} />
-        </Stack.Protected>
-      </Stack>
-    </QueryClientProvider>
+    <PostHogProvider client={posthog}>
+      <QueryClientProvider client={queryClient}>
+        <Stack>
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Protected guard={isAuthenticated}>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="compose" options={{ headerShown: false }} />
+            <Stack.Screen name="thread/[id]" options={{ headerShown: false }} />
+            <Stack.Screen name="summary" options={{ headerShown: false }} />
+          </Stack.Protected>
+        </Stack>
+      </QueryClientProvider>
+    </PostHogProvider>
   );
 }

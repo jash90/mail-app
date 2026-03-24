@@ -10,6 +10,7 @@ import {
   useTrashThread,
 } from '@/features/gmail';
 import { TTSPlayerBar, useEmailTTSQueue } from '@/features/tts';
+import { analytics } from '@/lib/analytics';
 import { threadToEmailProps } from '@/lib/threadTransform';
 import { useAuthStore } from '@/store/authStore';
 import type { EmailThread } from '@/types';
@@ -119,6 +120,7 @@ export default function ListScreen() {
   }, [accountId, handleRefresh, sync.isPending]);
 
   const handleCompose = () => {
+    analytics.emailComposed();
     router.push('/compose');
   };
 
@@ -136,7 +138,10 @@ export default function ListScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => trashMutate(thread.id),
+          onPress: () => {
+            analytics.threadTrashed(thread.id);
+            trashMutate(thread.id);
+          },
         },
       ]);
     },

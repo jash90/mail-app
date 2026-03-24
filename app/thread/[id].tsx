@@ -5,6 +5,7 @@ import {
   useThread,
   useThreadMessages,
 } from '@/features/gmail';
+import { analytics } from '@/lib/analytics';
 import { parseCompositeId } from '@/lib/parseCompositeId';
 import { useAuthStore } from '@/store/authStore';
 import { ThreadMessageItem } from '@/components/ThreadMessageItem';
@@ -63,6 +64,12 @@ export default function ThreadScreen() {
     router.back();
   };
 
+  useEffect(() => {
+    if (providerThreadId) {
+      analytics.threadOpened(providerThreadId);
+    }
+  }, [providerThreadId]);
+
   const { mutate: reply, isPending: replying } = useSendReply(accountId);
 
   const handleReply = () => {
@@ -90,7 +97,10 @@ export default function ThreadScreen() {
         },
       },
       {
-        onSuccess: () => setMessage(''),
+        onSuccess: () => {
+          analytics.replySent(providerThreadId);
+          setMessage('');
+        },
         onError: (error: unknown) => {
           Alert.alert(
             'Error',
@@ -127,6 +137,7 @@ export default function ThreadScreen() {
       );
       if (controller.signal.aborted) return;
       setMessage(result);
+      analytics.aiReplyGenerated(providerThreadId);
     } catch (err) {
       if (controller.signal.aborted) return;
       console.warn('[ThreadScreen] AI reply generation failed:', err);
