@@ -1,4 +1,9 @@
 import * as Sentry from '@sentry/react-native';
+import { isRunningInExpoGo } from 'expo';
+
+const navigationIntegration = Sentry.reactNavigationIntegration({
+  enableTimeToInitialDisplay: !isRunningInExpoGo(),
+});
 
 export function initSentry() {
   Sentry.init({
@@ -6,7 +11,15 @@ export function initSentry() {
     tracesSampleRate: 0.2,
     enableAutoSessionTracking: true,
     attachScreenshot: true,
+    enableUserInteractionTracing: true,
+    enableNativeFramesTracking: !isRunningInExpoGo(),
+    replaysSessionSampleRate: 0.1,
+    replaysOnErrorSampleRate: 1.0,
+    integrations: [
+      navigationIntegration,
+      Sentry.mobileReplayIntegration(),
+    ],
   });
 }
 
-export { Sentry };
+export { Sentry, navigationIntegration };

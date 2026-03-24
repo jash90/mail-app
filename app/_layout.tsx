@@ -3,7 +3,7 @@ global.Buffer = global.Buffer || Buffer;
 
 import '../global.css';
 
-import { initSentry, Sentry } from '@/lib/sentry';
+import { initSentry, Sentry, navigationIntegration } from '@/lib/sentry';
 initSentry();
 
 import { useAuthStore } from '@/store/authStore';
@@ -15,7 +15,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { PostHogProvider } from 'posthog-react-native';
 import { posthog } from '@/lib/posthog';
-import { Stack } from 'expo-router';
+import { Stack, useNavigationContainerRef } from 'expo-router';
 import { useEffect } from 'react';
 import { Text, View } from 'react-native';
 import 'react-native-reanimated';
@@ -28,6 +28,14 @@ const centeredContainerStyle = {
 };
 
 function RootLayout() {
+  const ref = useNavigationContainerRef();
+
+  useEffect(() => {
+    if (ref) {
+      navigationIntegration.registerNavigationContainer(ref);
+    }
+  }, [ref]);
+
   const { success: migrationSuccess, error: migrationError } = useMigrations(
     db,
     migrations,
@@ -65,20 +73,33 @@ function RootLayout() {
   }
 
   return (
-    <PostHogProvider client={posthog}>
-      <QueryClientProvider client={queryClient}>
-        <Stack>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="login" options={{ headerShown: false }} />
-          <Stack.Protected guard={isAuthenticated}>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="compose" options={{ headerShown: false }} />
-            <Stack.Screen name="thread/[id]" options={{ headerShown: false }} />
-            <Stack.Screen name="summary" options={{ headerShown: false }} />
-          </Stack.Protected>
-        </Stack>
-      </QueryClientProvider>
-    </PostHogProvider>
+    <Sentry.ErrorBoundary
+      fallback={
+        <View style={centeredContainerStyle}>
+          <Text style={{ color: '#f87171', fontSize: 16 }}>
+            Unexpected error occurred
+          </Text>
+        </View>
+      }
+    >
+      <PostHogProvider client={posthog}>
+        <QueryClientProvider client={queryClient}>
+          <Stack>
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="login" options={{ headerShown: false }} />
+            <Stack.Protected guard={isAuthenticated}>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="compose" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="thread/[id]"
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen name="summary" options={{ headerShown: false }} />
+            </Stack.Protected>
+          </Stack>
+        </QueryClientProvider>
+      </PostHogProvider>
+    </Sentry.ErrorBoundary>
   );
 }
 

@@ -56,7 +56,13 @@
         "16.0"
       ],
       "llama.rn",
-      "@sentry/react-native/expo"
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "raccoon-software",
+          "project": "mail-app"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
