@@ -3,7 +3,8 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as SecureStore from 'expo-secure-store';
 
 const TOKEN_KEY_PREFIX = 'oauth_tokens_';
-const TOKEN_EXPIRY_BUFFER_MS = 60_000; // refresh 1 min early
+export const TOKEN_EXPIRY_BUFFER_MS = 60_000;
+export const TOKEN_LIFETIME_MS = 3_600_000;
 
 export interface StoredTokens {
   access_token: string;
@@ -42,31 +43,45 @@ export async function storeTokens(
 }
 
 export async function resetTokens(): Promise<void> {
-  // Remove stored Gmail tokens from SecureStore
   await SecureStore.deleteItemAsync(`${TOKEN_KEY_PREFIX}gmail`);
 }
 
-export async function refreshGmailTokens(
-  _refreshToken: string,
-): Promise<{ access_token: string } | null> {
+export async function refreshGmailTokens(): Promise<{
+  access_token: string;
+  expiry_time: number;
+} | null> {
   try {
-    // @react-native-google-signin/google-signin v16 manages refresh
-    // internally — calling getTokens() returns a fresh access token.
-    const { accessToken } = await GoogleSignin.getTokens();
+    const isSignedIn = await GoogleSignin.hasPreviousSignIn();
+    if (!isSignedIn) {
+      await GoogleSignin.signInSilently();
+    }
 
+    const [{ accessToken }, existing] = await Promise.all([
+      GoogleSignin.getTokens(),
+      getStoredTokens('gmail'),
+    ]);
     if (!accessToken) return null;
 
-    // Persist the refreshed token (1-hour default Google expiry)
+    const expiryTime = Date.now() + TOKEN_LIFETIME_MS;
+
     await storeTokens('gmail', {
       access_token: accessToken,
-      refresh_token: '', // managed internally by the library
-      expiry_time: Date.now() + 3600_000,
-      user: null,
+      refresh_token: '',
+      expiry_time: expiryTime,
+      user: existing?.user ?? null,
     });
 
-    return { access_token: accessToken };
+    return { access_token: accessToken, expiry_time: expiryTime };
   } catch (e) {
     console.error('[refreshGmailTokens] Token refresh failed:', e);
     return null;
+  }
+}
+
+export async function initializeTokens(): Promise<void> {
+  const tokens = await getStoredTokens('gmail');
+  if (!tokens) return;
+  if (isTokenExpired(tokens)) {
+    await refreshGmailTokens();
   }
 }

@@ -4,6 +4,7 @@ import {
   isTokenExpired,
   refreshGmailTokens,
   resetTokens,
+  TOKEN_EXPIRY_BUFFER_MS,
 } from '@/features/auth/oauthService';
 import {
   clearAllCooldowns,
@@ -33,7 +34,16 @@ export const clearTokenCache = () => {
   refreshPromises.clear();
 };
 
-const handleAuthFailure = () => {
+const handleAuthFailure = async () => {
+  const refreshed = await refreshGmailTokens();
+  if (refreshed) {
+    cachedToken = {
+      value: refreshed.access_token,
+      expiresAt: refreshed.expiry_time - TOKEN_EXPIRY_BUFFER_MS,
+    };
+    return;
+  }
+
   authGeneration++;
   cachedToken = null;
   refreshPromises.clear();
@@ -61,9 +71,9 @@ export const getAccessToken = async (
     if (existing) return existing;
     const promise = (async () => {
       try {
-        const refreshed = await refreshGmailTokens(tokens.refresh_token);
+        const refreshed = await refreshGmailTokens();
         if (!refreshed) {
-          handleAuthFailure();
+          await handleAuthFailure();
           throw new Error(
             'Failed to refresh Gmail tokens. Please re-authenticate.',
           );
@@ -73,7 +83,7 @@ export const getAccessToken = async (
         }
         cachedToken = {
           value: refreshed.access_token,
-          expiresAt: Date.now() + 55 * 60_000,
+          expiresAt: refreshed.expiry_time - TOKEN_EXPIRY_BUFFER_MS,
         };
         return refreshed.access_token;
       } finally {
@@ -86,7 +96,7 @@ export const getAccessToken = async (
 
   cachedToken = {
     value: tokens.access_token,
-    expiresAt: tokens.expiry_time - 60_000,
+    expiresAt: tokens.expiry_time - TOKEN_EXPIRY_BUFFER_MS,
   };
   return tokens.access_token;
 };
@@ -117,7 +127,7 @@ export const apiRequestRaw = async (
     updateThrottleState(response);
 
     if (response.status === 401) {
-      handleAuthFailure();
+      await handleAuthFailure();
       throw new NonRetryableError(
         'Gmail session expired. Please re-authenticate.',
       );

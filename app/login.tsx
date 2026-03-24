@@ -1,4 +1,4 @@
-import { storeTokens } from '@/features/auth/oauthService';
+import { storeTokens, TOKEN_LIFETIME_MS } from '@/features/auth/oauthService';
 import { useAuthStore } from '@/store/authStore';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { useRouter } from 'expo-router';
@@ -41,7 +41,7 @@ export default function LoginScreen() {
         await storeTokens('gmail', {
           access_token: accessToken,
           refresh_token: '', // managed internally by the library
-          expiry_time: Date.now() + 3600_000, // 1-hour Google default
+          expiry_time: Date.now() + TOKEN_LIFETIME_MS,
           user: userPayload,
         });
 

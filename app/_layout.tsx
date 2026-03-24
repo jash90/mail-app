@@ -4,12 +4,14 @@ global.Buffer = global.Buffer || Buffer;
 import '../global.css';
 
 import { useAuthStore } from '@/store/authStore';
+import { initializeTokens } from '@/features/auth/oauthService';
 import { db } from '@/db/client';
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import migrations from '../drizzle/migrations';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { Stack } from 'expo-router';
+import { useEffect } from 'react';
 import { Text, View } from 'react-native';
 import 'react-native-reanimated';
 
@@ -26,6 +28,12 @@ export default function RootLayout() {
     migrations,
   );
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      initializeTokens().catch(console.error);
+    }
+  }, [isAuthenticated]);
 
   if (migrationError) {
     return (
