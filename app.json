@@ -10,6 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "appleTeamId": "H2X8YGN869",
       "bundleIdentifier": "com.jash.mail-app",
       "deploymentTarget": "16.0",
       "infoPlist": {
