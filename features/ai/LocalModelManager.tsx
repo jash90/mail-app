@@ -118,6 +118,9 @@ function useLocalModels() {
   };
 }
 
+const LOCAL_MODELS_ENABLED =
+  process.env.EXPO_PUBLIC_LOCAL_MODELS_ENABLED === 'true';
+
 export function LocalModelManager() {
   const {
     aiProvider,
@@ -129,6 +132,8 @@ export function LocalModelManager() {
     selectModel,
     removeModel,
   } = useLocalModels();
+
+  if (!LOCAL_MODELS_ENABLED) return null;
 
   return (
     <View className="mt-4">
