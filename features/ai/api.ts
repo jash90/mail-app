@@ -4,7 +4,8 @@ import { summaryCache } from '@/db/schema';
 import { and, eq, gt, inArray } from 'drizzle-orm';
 import { getProvider } from './providers';
 import type { ChatMessage, EmailContext } from './types';
-import { formatContext } from './types';
+import { formatContext, isSmallModel } from './types';
+import { useAiSettingsStore } from '@/store/aiSettingsStore';
 
 export { chatCompletion } from './cloud-api';
 
@@ -16,6 +17,25 @@ const SYSTEM_PROMPT = `You are an AI email assistant. Write professional, concis
 - Format the email with proper structure: greeting, body paragraphs, closing, and signature
 - Use line breaks between sections for readability
 - Keep paragraphs short (2-3 sentences max)`;
+
+const LOCAL_SMALL_SYSTEM_PROMPT =
+  'You are an email assistant. Write concise emails. Match the language of the input. Only output the email body.';
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isUsingSmallLocalModel(): boolean {
+  const { aiProvider, localModelId } = useAiSettingsStore.getState();
+  return aiProvider === 'local' && isSmallModel(localModelId);
+}
+
+function getSystemPrompt(): string {
+  return isUsingSmallLocalModel() ? LOCAL_SMALL_SYSTEM_PROMPT : SYSTEM_PROMPT;
+}
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -62,19 +82,24 @@ export async function summarizeEmail(
   const cached = getSummaryCache(threadId);
   if (cached) return cached;
 
+  const smallModel = isUsingSmallLocalModel();
+  const truncatedSnippet = smallModel
+    ? stripHtml(snippet).substring(0, 200)
+    : snippet;
+
   const userMsg = [
     subject ? `Subject: ${subject}` : '',
-    snippet ? `Content: ${snippet}` : '',
+    truncatedSnippet ? `Content: ${truncatedSnippet}` : '',
   ]
     .filter(Boolean)
     .join('\n');
 
+  const summarySystemPrompt = smallModel
+    ? 'Summarize this email in 1-2 sentences. Match the language.'
+    : 'Summarize the email in max 500 characters. If the email is in Polish, summarize in Polish. Otherwise summarize in English. Be concise and informative.';
+
   const messages: ChatMessage[] = [
-    {
-      role: 'system',
-      content:
-        'Summarize the email in max 500 characters. If the email is in Polish, summarize in Polish. Otherwise summarize in English. Be concise and informative.',
-    },
+    { role: 'system', content: summarySystemPrompt },
     { role: 'user', content: userMsg },
   ];
 
@@ -119,18 +144,23 @@ export async function generateEmail(
   user: EmailContext['user'],
   signal?: AbortSignal,
 ): Promise<string> {
-  const context = formatContext({ from, user });
-  const userMsg = [
-    subject ? `Subject: ${subject}` : '',
-    context,
-    `Write an email about: ${prompt}`,
-  ]
-    .filter(Boolean)
-    .join('\n\n');
+  let userMsg: string;
+  if (isUsingSmallLocalModel()) {
+    userMsg = `Write an email about: ${prompt}`;
+  } else {
+    const context = formatContext({ from, user });
+    userMsg = [
+      subject ? `Subject: ${subject}` : '',
+      context,
+      `Write an email about: ${prompt}`,
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+  }
 
   return getProvider().generate(
     [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: getSystemPrompt() },
       { role: 'user', content: userMsg },
     ],
     signal,
@@ -145,21 +175,34 @@ export async function generateReply(
   user: EmailContext['user'],
   signal?: AbortSignal,
 ): Promise<string> {
-  const context = formatContext({ from, user });
-  const userMsg = [
-    subject ? `Subject: ${subject}` : '',
-    context,
-    `Original message:\n${originalBody}`,
-    userHint
-      ? `User's draft/instructions: ${userHint}`
-      : 'Write a professional reply to the message above.',
-  ]
-    .filter(Boolean)
-    .join('\n\n');
+  const smallModel = isUsingSmallLocalModel();
+
+  let userMsg: string;
+  if (smallModel) {
+    const body = stripHtml(originalBody).substring(0, 300);
+    userMsg = [
+      userHint || 'Write a professional reply.',
+      body ? `Context: ${body}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+  } else {
+    const context = formatContext({ from, user });
+    userMsg = [
+      subject ? `Subject: ${subject}` : '',
+      context,
+      `Original message:\n${originalBody}`,
+      userHint
+        ? `User's draft/instructions: ${userHint}`
+        : 'Write a professional reply to the message above.',
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+  }
 
   return getProvider().generate(
     [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: getSystemPrompt() },
       { role: 'user', content: userMsg },
     ],
     signal,

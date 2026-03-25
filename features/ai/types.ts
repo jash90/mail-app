@@ -1,3 +1,5 @@
+import { LLAMA3_2_1B, LLAMA3_2_3B, QWEN3_4B } from 'react-native-executorch';
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -8,35 +10,73 @@ export interface AiProvider {
   generate(messages: ChatMessage[], signal?: AbortSignal): Promise<string>;
 }
 
+export interface LLMModelSource {
+  modelSource: string;
+  tokenizerSource: string;
+  tokenizerConfigSource?: string;
+}
+
 export interface LocalModel {
   id: string;
   label: string;
-  filename: string;
-  url: string;
+  modelSource: LLMModelSource;
   sizeMB: number;
+  parameterSize: '1b' | '1.5b' | '3b' | '4b' | '4.5b';
 }
+
+const HF_BIELIK_BASE =
+  'https://huggingface.co/software-mansion/react-native-executorch-bielik-v3.0/resolve/main';
+
+const BIELIK_V3_1_5B: LLMModelSource = {
+  modelSource: `${HF_BIELIK_BASE}/bielik-v3.0-1.5B/quantized/bielik-1.5b-v3-instruct-8da4w.pte`,
+  tokenizerSource: `${HF_BIELIK_BASE}/tokenizer.json`,
+  tokenizerConfigSource: `${HF_BIELIK_BASE}/tokenizer_config.json`,
+};
+
+const HF_BIELIK_4_5B_BASE =
+  'https://huggingface.co/jash90/Bielik-4.5B-v3.0-Instruct-ExecuTorch/resolve/main';
+
+const BIELIK_V3_4_5B: LLMModelSource = {
+  modelSource: `${HF_BIELIK_4_5B_BASE}/bielik-4.5b-v3-instruct-8da4w.pte`,
+  tokenizerSource: `${HF_BIELIK_4_5B_BASE}/tokenizer.json`,
+  tokenizerConfigSource: `${HF_BIELIK_4_5B_BASE}/tokenizer_config.json`,
+};
 
 export const LOCAL_MODELS: LocalModel[] = [
   {
-    id: 'llama3.2-3b',
-    label: 'Llama 3.2 3B (Meta)',
-    filename: 'Llama-3.2-3B-Instruct-Q4_K_M.gguf',
-    url: 'https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf',
-    sizeMB: 2020,
-  },
-  {
     id: 'bielik-4.5b',
     label: 'Bielik 4.5B v3.0 (PL)',
-    filename: 'Bielik-4.5B-v3.0-Instruct-Q4_K_M.gguf',
-    url: 'https://huggingface.co/second-state/Bielik-4.5B-v3.0-Instruct-GGUF/resolve/main/Bielik-4.5B-v3.0-Instruct-Q4_K_M.gguf',
-    sizeMB: 2900,
+    modelSource: BIELIK_V3_4_5B,
+    sizeMB: 2700,
+    parameterSize: '4.5b',
+  },
+  {
+    id: 'bielik-1.5b',
+    label: 'Bielik 1.5B v3.0 (PL)',
+    modelSource: BIELIK_V3_1_5B,
+    sizeMB: 1650,
+    parameterSize: '1.5b',
+  },
+  {
+    id: 'llama3.2-1b',
+    label: 'Llama 3.2 1B (Meta)',
+    modelSource: LLAMA3_2_1B as LLMModelSource,
+    sizeMB: 700,
+    parameterSize: '1b',
+  },
+  {
+    id: 'llama3.2-3b',
+    label: 'Llama 3.2 3B (Meta)',
+    modelSource: LLAMA3_2_3B as LLMModelSource,
+    sizeMB: 1800,
+    parameterSize: '3b',
   },
   {
     id: 'qwen3-4b',
     label: 'Qwen 3 4B (Alibaba)',
-    filename: 'Qwen3-4B-Q4_K_M.gguf',
-    url: 'https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf',
-    sizeMB: 2500,
+    modelSource: QWEN3_4B as LLMModelSource,
+    sizeMB: 2400,
+    parameterSize: '4b',
   },
 ];
 
@@ -64,4 +104,9 @@ export function formatContext(
     );
   }
   return lines.join('\n');
+}
+
+export function isSmallModel(modelId: string): boolean {
+  const model = LOCAL_MODELS.find((m) => m.id === modelId);
+  return model ? ['1b', '1.5b'].includes(model.parameterSize) : false;
 }

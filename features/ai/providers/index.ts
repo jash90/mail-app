@@ -4,10 +4,10 @@ import { cloudProvider } from './cloud';
 import { createLocalProvider } from './local';
 
 export function getProvider(): AiProvider {
-  const { aiProvider, localModelId } = useAiSettingsStore.getState();
+  const { aiProvider } = useAiSettingsStore.getState();
 
   if (aiProvider === 'local') {
-    return createLocalProvider(localModelId);
+    return createLocalProvider();
   }
 
   return cloudProvider;
