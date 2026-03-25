@@ -55,7 +55,6 @@
         "./plugins/withMinDeploymentTarget",
         "16.0"
       ],
-      "llama.rn",
       [
         "@sentry/react-native/expo",
         {

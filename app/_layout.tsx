@@ -13,6 +13,8 @@ import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import migrations from '../drizzle/migrations';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
+import { useAiSettingsStore } from '@/store/aiSettingsStore';
+import { useLlmStore } from '@/store/llmStore';
 import { PostHogProvider } from 'posthog-react-native';
 import { posthog } from '@/lib/posthog';
 import { Stack, useNavigationContainerRef } from 'expo-router';
@@ -47,6 +49,29 @@ function RootLayout() {
       initializeTokens().catch(console.error);
     }
   }, [isAuthenticated]);
+
+  // Sync local LLM model z aiSettingsStore
+  useEffect(() => {
+    const { aiProvider, localModelId } = useAiSettingsStore.getState();
+    if (aiProvider === 'local') {
+      useLlmStore.getState().loadModel(localModelId);
+    }
+
+    const unsub = useAiSettingsStore.subscribe((state, prev) => {
+      if (
+        state.aiProvider === 'local' &&
+        (state.localModelId !== prev.localModelId ||
+          state.aiProvider !== prev.aiProvider)
+      ) {
+        useLlmStore.getState().loadModel(state.localModelId);
+      }
+      if (state.aiProvider !== 'local' && prev.aiProvider === 'local') {
+        useLlmStore.getState().unloadModel();
+      }
+    });
+
+    return unsub;
+  }, []);
 
   useEffect(() => {
     if (migrationError) {

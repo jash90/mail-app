@@ -1,7 +1,6 @@
 import { Alert, Pressable, Text, View } from 'react-native';
-import { ResourceFetcher } from 'react-native-executorch';
 import { useAiSettingsStore } from '@/store/aiSettingsStore';
-import { useLocalLLM } from './LocalLLMContext';
+import { useLlmStore } from '@/store/llmStore';
 import { LOCAL_MODELS, type LocalModel } from './types';
 
 export function LocalModelManager() {
@@ -10,16 +9,27 @@ export function LocalModelManager() {
   const setAiProvider = useAiSettingsStore((s) => s.setAiProvider);
   const setLocalModelId = useAiSettingsStore((s) => s.setLocalModelId);
 
-  const modelSwitchPhase = useAiSettingsStore((s) => s.modelSwitchPhase);
   const {
     isReady,
     isGenerating,
+    isLoading,
     downloadProgress,
     error,
     errorKind,
     didAutoFallback,
     retry,
-  } = useLocalLLM();
+    deleteModelFiles,
+  } = useLlmStore();
+
+  const handleSelectModel = (id: string) => {
+    if (isLoading) return;
+    if (isGenerating && !error) {
+      Alert.alert('Model pracuje', 'Poczekaj na zakończenie generowania.');
+      return;
+    }
+    setLocalModelId(id);
+    setAiProvider('local');
+  };
 
   const handleDeleteModel = (modelId: string) => {
     const model = LOCAL_MODELS.find((m) => m.id === modelId);
@@ -33,29 +43,10 @@ export function LocalModelManager() {
         {
           text: 'Usuń',
           style: 'destructive',
-          onPress: async () => {
-            try {
-              await ResourceFetcher.deleteResources(model.modelSource);
-            } catch {
-              // Model mógł nie być pobrany — ignoruj
-            }
-          },
+          onPress: () => deleteModelFiles(modelId),
         },
       ],
     );
-  };
-
-  const isSwitching =
-    modelSwitchPhase === 'unloading' || modelSwitchPhase === 'loading';
-
-  const handleSelectModel = (id: string) => {
-    if (isSwitching) return;
-    if (isGenerating && !error) {
-      Alert.alert('Model pracuje', 'Poczekaj na zakończenie generowania.');
-      return;
-    }
-    setLocalModelId(id);
-    setAiProvider('local');
   };
 
   return (
@@ -109,23 +100,14 @@ export function LocalModelManager() {
       {/* Status aktywnego modelu */}
       {aiProvider === 'local' && (
         <View className="mb-3">
-          {modelSwitchPhase === 'unloading' && (
-            <Text className="text-sm text-zinc-400">Zwalnianie pamięci…</Text>
+          {isLoading && downloadProgress > 0 && downloadProgress < 1 && (
+            <Text className="text-sm text-zinc-400">
+              Pobieranie: {Math.round(downloadProgress * 100)}%
+            </Text>
           )}
-          {modelSwitchPhase !== 'unloading' &&
-            !isReady &&
-            downloadProgress > 0 &&
-            downloadProgress < 1 && (
-              <Text className="text-sm text-zinc-400">
-                Pobieranie: {Math.round(downloadProgress * 100)}%
-              </Text>
-            )}
-          {modelSwitchPhase !== 'unloading' &&
-            !isReady &&
-            downloadProgress === 0 &&
-            !error && (
-              <Text className="text-sm text-zinc-400">Ładowanie modelu…</Text>
-            )}
+          {isLoading && downloadProgress === 0 && !error && (
+            <Text className="text-sm text-zinc-400">Ładowanie modelu…</Text>
+          )}
           {isReady && (
             <Text className="text-sm text-green-500">✓ Model gotowy</Text>
           )}
@@ -179,15 +161,15 @@ export function LocalModelManager() {
 
       {LOCAL_MODELS.map((model) => {
         const isActive = localModelId === model.id && aiProvider === 'local';
-        const isLoading = isActive && !isReady;
+        const isModelLoading = isActive && isLoading;
         return (
           <ModelCard
             key={model.id}
             model={model}
             isActive={isActive}
-            isLoading={isLoading}
-            disabled={isSwitching}
-            downloadProgress={isLoading ? downloadProgress : 0}
+            isLoading={isModelLoading}
+            disabled={isLoading}
+            downloadProgress={isModelLoading ? downloadProgress : 0}
             onPress={() => handleSelectModel(model.id)}
           />
         );

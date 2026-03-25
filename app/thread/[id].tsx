@@ -141,7 +141,7 @@ export default function ThreadScreen() {
     } catch (err) {
       if (controller.signal.aborted) return;
       console.warn('[ThreadScreen] AI reply generation failed:', err);
-      Alert.alert('Error', 'Failed to generate AI reply.');
+      Alert.alert('Error', err instanceof Error ? err.message : 'Failed to generate AI reply.');
     } finally {
       if (!controller.signal.aborted) {
         setGeneratingAI(false);

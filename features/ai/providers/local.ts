@@ -1,25 +1,15 @@
-import { localLLMBridge } from '../LocalLLMContext';
+import { useLlmStore } from '@/store/llmStore';
 import type { AiProvider, ChatMessage } from '../types';
+import type { Message } from 'react-native-executorch';
 
 export function createLocalProvider(): AiProvider {
   return {
     name: 'local',
-
     async generate(
       messages: ChatMessage[],
       signal?: AbortSignal,
     ): Promise<string> {
-      if (!localLLMBridge.generate) {
-        throw new Error(
-          'Lokalny model nie jest zainicjalizowany. ' +
-            'Upewnij się, że LocalLLMProvider jest zamontowany.',
-        );
-      }
-      return localLLMBridge.generate(messages, signal);
+      return useLlmStore.getState().generate(messages as Message[], signal);
     },
   };
-}
-
-export async function releaseLocalProvider(): Promise<void> {
-  localLLMBridge.interrupt?.();
 }

@@ -7,6 +7,18 @@ const TOKEN_KEY_PREFIX = 'oauth_tokens_';
 export const TOKEN_EXPIRY_BUFFER_MS = 60_000;
 export const TOKEN_LIFETIME_MS = 3_600_000;
 
+function ensureGoogleSigninConfigured() {
+  GoogleSignin.configure({
+    iosClientId:
+      '510423566915-edi6sd1aqhcs4flbbcsdht22sfre9tsf.apps.googleusercontent.com',
+    scopes: [
+      'https://www.googleapis.com/auth/gmail.modify',
+      'https://www.googleapis.com/auth/gmail.send',
+      'https://www.googleapis.com/auth/contacts.readonly',
+    ],
+  });
+}
+
 export interface StoredTokens {
   access_token: string;
   refresh_token: string;
@@ -52,8 +64,10 @@ export async function refreshGmailTokens(): Promise<{
   expiry_time: number;
 } | null> {
   try {
-    const isSignedIn = await GoogleSignin.hasPreviousSignIn();
-    if (!isSignedIn) {
+    ensureGoogleSigninConfigured();
+
+    const currentUser = GoogleSignin.getCurrentUser();
+    if (!currentUser) {
       await GoogleSignin.signInSilently();
     }
 
