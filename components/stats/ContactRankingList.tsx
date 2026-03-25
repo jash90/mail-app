@@ -1,6 +1,6 @@
-import React from 'react';
-import { View, Text } from 'react-native';
 import type { ContactStats } from '@/features/stats/types';
+import React from 'react';
+import { Text, View } from 'react-native';
 
 interface Props {
   title: string;
@@ -25,13 +25,12 @@ export default function ContactRankingList({
       {contacts.slice(0, 7).map((contact) => {
         const value = contact[valueKey] ?? contact.totalCount;
         const barWidth = maxValue > 0 ? (value / maxValue) * 100 : 0;
-        const displayName = contact.name || contact.email.split('@')[0];
 
         return (
           <View key={contact.email} className="mb-2">
             <View className="flex-row items-center justify-between">
               <Text className="flex-1 text-sm text-zinc-300" numberOfLines={1}>
-                {displayName}
+                {contact.email}
               </Text>
               <Text className="ml-2 text-sm font-medium text-zinc-400">
                 {value}
