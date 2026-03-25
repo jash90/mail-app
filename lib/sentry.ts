@@ -15,10 +15,7 @@ export function initSentry() {
     enableNativeFramesTracking: !isRunningInExpoGo(),
     replaysSessionSampleRate: 0.1,
     replaysOnErrorSampleRate: 1.0,
-    integrations: [
-      navigationIntegration,
-      Sentry.mobileReplayIntegration(),
-    ],
+    integrations: [navigationIntegration, Sentry.mobileReplayIntegration()],
   });
 }
 
