@@ -9,6 +9,9 @@ export function LocalModelManager() {
   const setAiProvider = useAiSettingsStore((s) => s.setAiProvider);
   const setLocalModelId = useAiSettingsStore((s) => s.setLocalModelId);
 
+  const LOCAL_MODELS_ENABLED =
+    process.env.EXPO_PUBLIC_LOCAL_MODELS_ENABLED === 'true';
+
   const {
     isReady,
     isGenerating,
@@ -48,6 +51,8 @@ export function LocalModelManager() {
       ],
     );
   };
+
+  if (!LOCAL_MODELS_ENABLED) return null;
 
   return (
     <View className="mt-4">
