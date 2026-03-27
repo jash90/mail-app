@@ -18,8 +18,8 @@ import { useLlmStore } from '@/store/llmStore';
 import { PostHogProvider } from 'posthog-react-native';
 import { posthog } from '@/lib/posthog';
 import { Stack, useNavigationContainerRef } from 'expo-router';
-import { useEffect } from 'react';
-import { Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { AppState, Text, View } from 'react-native';
 import 'react-native-reanimated';
 
 const centeredContainerStyle = {
@@ -52,6 +52,16 @@ function RootLayout() {
 
   // Sync local LLM model z aiSettingsStore
   useEffect(() => {
+    const LOCAL_MODELS_ENABLED =
+      process.env.EXPO_PUBLIC_LOCAL_MODELS_ENABLED === 'true';
+
+    if (!LOCAL_MODELS_ENABLED) {
+      if (useAiSettingsStore.getState().aiProvider === 'local') {
+        useAiSettingsStore.getState().setAiProvider('cloud');
+      }
+      return;
+    }
+
     const { aiProvider, localModelId } = useAiSettingsStore.getState();
     if (aiProvider === 'local') {
       useLlmStore.getState().loadModel(localModelId);
@@ -71,6 +81,53 @@ function RootLayout() {
     });
 
     return unsub;
+  }, []);
+
+  // Unload LLM on background to prevent Jetsam kills, reload on foreground
+  const wasUnloadedForBackground = useRef(false);
+  useEffect(() => {
+    const LOCAL_MODELS_ENABLED =
+      process.env.EXPO_PUBLIC_LOCAL_MODELS_ENABLED === 'true';
+    if (!LOCAL_MODELS_ENABLED) return;
+
+    const sub = AppState.addEventListener('change', (nextState) => {
+      const { aiProvider, localModelId } = useAiSettingsStore.getState();
+
+      if (nextState === 'background' || nextState === 'inactive') {
+        if (aiProvider === 'local' && useLlmStore.getState().loadedModelId) {
+          useLlmStore.getState().interrupt();
+          useLlmStore.getState().unloadModel();
+          wasUnloadedForBackground.current = true;
+        }
+      } else if (nextState === 'active' && wasUnloadedForBackground.current) {
+        wasUnloadedForBackground.current = false;
+        if (aiProvider === 'local') {
+          useLlmStore.getState().loadModel(localModelId);
+        }
+      }
+    });
+
+    return () => sub.remove();
+  }, []);
+
+  // Unload LLM on iOS memory warning to prevent Hermes OOM crash
+  useEffect(() => {
+    const LOCAL_MODELS_ENABLED =
+      process.env.EXPO_PUBLIC_LOCAL_MODELS_ENABLED === 'true';
+    if (!LOCAL_MODELS_ENABLED) return;
+
+    const sub = AppState.addEventListener('memoryWarning', () => {
+      const { loadedModelId } = useLlmStore.getState();
+      if (loadedModelId) {
+        console.warn('[LLM] Memory warning — unloading model to free RAM');
+        useLlmStore.getState().interrupt();
+        useLlmStore.getState().unloadModel();
+        useAiSettingsStore.getState().setAiProvider('cloud');
+        useLlmStore.setState({ didAutoFallback: true });
+      }
+    });
+
+    return () => sub.remove();
   }, []);
 
   useEffect(() => {

@@ -110,3 +110,7 @@ export function isSmallModel(modelId: string): boolean {
   const model = LOCAL_MODELS.find((m) => m.id === modelId);
   return model ? ['1b', '1.5b'].includes(model.parameterSize) : false;
 }
+
+export function isQwen3Model(modelId: string): boolean {
+  return modelId.startsWith('qwen3');
+}

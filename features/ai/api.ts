@@ -4,7 +4,7 @@ import { summaryCache } from '@/db/schema';
 import { and, eq, gt, inArray } from 'drizzle-orm';
 import { getProvider } from './providers';
 import type { ChatMessage, EmailContext } from './types';
-import { formatContext, isSmallModel } from './types';
+import { formatContext, isSmallModel, isQwen3Model } from './types';
 import { useAiSettingsStore } from '@/store/aiSettingsStore';
 
 export { chatCompletion } from './cloud-api';
@@ -31,6 +31,19 @@ function stripHtml(html: string): string {
 function isUsingSmallLocalModel(): boolean {
   const { aiProvider, localModelId } = useAiSettingsStore.getState();
   return aiProvider === 'local' && isSmallModel(localModelId);
+}
+
+function isUsingQwen3(): boolean {
+  const { aiProvider, localModelId } = useAiSettingsStore.getState();
+  return aiProvider === 'local' && isQwen3Model(localModelId);
+}
+
+function appendNoThink(content: string): string {
+  return isUsingQwen3() ? `${content}\n/no_think` : content;
+}
+
+function stripThinkBlocks(text: string): string {
+  return text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
 }
 
 function getSystemPrompt(): string {
@@ -100,10 +113,11 @@ export async function summarizeEmail(
 
   const messages: ChatMessage[] = [
     { role: 'system', content: summarySystemPrompt },
-    { role: 'user', content: userMsg },
+    { role: 'user', content: appendNoThink(userMsg) },
   ];
 
-  const summary = await getProvider().generate(messages, signal);
+  const raw = await getProvider().generate(messages, signal);
+  const summary = stripThinkBlocks(raw);
 
   setSummaryCache(threadId, summary);
   return summary;
@@ -113,6 +127,9 @@ export async function prefetchSummaries(
   accountId: string,
   signal?: AbortSignal,
 ): Promise<void> {
+  // Skip prefetch for local models — sequential on-device generation is too slow
+  if (useAiSettingsStore.getState().aiProvider === 'local') return;
+
   const threads = getUnreadThreads(accountId, 20);
   let consecutiveFailures = 0;
 
@@ -158,13 +175,14 @@ export async function generateEmail(
       .join('\n\n');
   }
 
-  return getProvider().generate(
+  const raw = await getProvider().generate(
     [
       { role: 'system', content: getSystemPrompt() },
-      { role: 'user', content: userMsg },
+      { role: 'user', content: appendNoThink(userMsg) },
     ],
     signal,
   );
+  return stripThinkBlocks(raw);
 }
 
 export async function generateReply(
@@ -200,11 +218,12 @@ export async function generateReply(
       .join('\n\n');
   }
 
-  return getProvider().generate(
+  const raw = await getProvider().generate(
     [
       { role: 'system', content: getSystemPrompt() },
-      { role: 'user', content: userMsg },
+      { role: 'user', content: appendNoThink(userMsg) },
     ],
     signal,
   );
+  return stripThinkBlocks(raw);
 }

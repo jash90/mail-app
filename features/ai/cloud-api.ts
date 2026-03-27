@@ -22,7 +22,11 @@ export async function chatCompletion(
   signal?: AbortSignal,
 ): Promise<string> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), AI.timeoutMs);
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, AI.timeoutMs);
 
   // Link external signal to internal controller
   const onAbort = () => controller.abort();
@@ -60,6 +64,11 @@ export async function chatCompletion(
     const content = data.choices?.[0]?.message?.content;
     if (!content) throw new Error('Z.AI returned empty response');
     return content;
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error(timedOut ? 'Request timed out' : 'Request was cancelled');
+    }
+    throw err;
   } finally {
     clearTimeout(timeout);
     signal?.removeEventListener('abort', onAbort);

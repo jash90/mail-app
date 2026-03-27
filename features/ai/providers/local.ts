@@ -9,6 +9,18 @@ export function createLocalProvider(): AiProvider {
       messages: ChatMessage[],
       signal?: AbortSignal,
     ): Promise<string> {
+      const { isReady, isLoading, error } = useLlmStore.getState();
+
+      if (!isReady) {
+        if (isLoading) {
+          throw new Error('Model is still loading. Please wait.');
+        }
+        if (error) {
+          throw new Error(`Model failed to load: ${error}`);
+        }
+        throw new Error('Local model is not loaded. Select a model first.');
+      }
+
       return useLlmStore.getState().generate(messages as Message[], signal);
     },
   };

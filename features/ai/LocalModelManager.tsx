@@ -3,19 +3,20 @@ import { useAiSettingsStore } from '@/store/aiSettingsStore';
 import { useLlmStore } from '@/store/llmStore';
 import { LOCAL_MODELS, type LocalModel } from './types';
 
+const LOCAL_MODELS_ENABLED =
+  process.env.EXPO_PUBLIC_LOCAL_MODELS_ENABLED === 'true';
+
 export function LocalModelManager() {
   const aiProvider = useAiSettingsStore((s) => s.aiProvider);
   const localModelId = useAiSettingsStore((s) => s.localModelId);
   const setAiProvider = useAiSettingsStore((s) => s.setAiProvider);
   const setLocalModelId = useAiSettingsStore((s) => s.setLocalModelId);
 
-  const LOCAL_MODELS_ENABLED =
-    process.env.EXPO_PUBLIC_LOCAL_MODELS_ENABLED === 'true';
-
   const {
     isReady,
     isGenerating,
     isLoading,
+    loadingPhase,
     downloadProgress,
     error,
     errorKind,
@@ -30,8 +31,16 @@ export function LocalModelManager() {
       Alert.alert('Model pracuje', 'Poczekaj na zakończenie generowania.');
       return;
     }
+
+    const sameModel = id === localModelId && aiProvider === 'local';
     setLocalModelId(id);
     setAiProvider('local');
+
+    // If re-selecting the same model (e.g. after failure), the Zustand
+    // subscription won't fire because no state changed — trigger directly.
+    if (sameModel) {
+      useLlmStore.getState().loadModel(id);
+    }
   };
 
   const handleDeleteModel = (modelId: string) => {
@@ -105,13 +114,26 @@ export function LocalModelManager() {
       {/* Status aktywnego modelu */}
       {aiProvider === 'local' && (
         <View className="mb-3">
-          {isLoading && downloadProgress > 0 && downloadProgress < 1 && (
+          {isLoading &&
+            loadingPhase === 'downloading' &&
+            downloadProgress > 0 &&
+            downloadProgress < 1 && (
+              <Text className="text-sm text-zinc-400">
+                Pobieranie: {Math.round(downloadProgress * 100)}%
+              </Text>
+            )}
+          {isLoading &&
+            loadingPhase === 'downloading' &&
+            downloadProgress === 0 &&
+            !error && (
+              <Text className="text-sm text-zinc-400">
+                Rozpoczynanie pobierania…
+              </Text>
+            )}
+          {isLoading && loadingPhase === 'initializing' && (
             <Text className="text-sm text-zinc-400">
-              Pobieranie: {Math.round(downloadProgress * 100)}%
+              Inicjalizacja modelu…
             </Text>
-          )}
-          {isLoading && downloadProgress === 0 && !error && (
-            <Text className="text-sm text-zinc-400">Ładowanie modelu…</Text>
           )}
           {isReady && (
             <Text className="text-sm text-green-500">✓ Model gotowy</Text>
