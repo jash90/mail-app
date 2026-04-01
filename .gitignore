@@ -45,3 +45,9 @@ app-example
 
 # Fastlane secrets
 **/fastlane/.env
+
+# Fastlane build artifacts
+*.ipa
+*.dSYM.zip
+*.aab
+*.apk
