@@ -1,0 +1,50 @@
+platform :ios do
+  before_all do
+    @api_key = app_store_connect_api_key(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      key_content: ENV["ASC_KEY_CONTENT_BASE64"],
+      is_key_content_base64: true
+    )
+  end
+
+  desc "Fetch certificates and provisioning profiles"
+  lane :certs do
+    match(type: "appstore", readonly: is_ci)
+  end
+
+  desc "Build and upload to TestFlight"
+  lane :beta do
+    match(type: "appstore", readonly: is_ci)
+    increment_build_number(xcodeproj: "ios/mailapp.xcodeproj")
+    build_app(
+      workspace: "ios/mailapp.xcworkspace",
+      scheme: "mailapp",
+      export_method: "app-store"
+    )
+    upload_to_testflight(
+      api_key: @api_key,
+      skip_waiting_for_build_processing: true
+    )
+    clean_build_artifacts
+    sh("rm -rf ../ios/build")
+  end
+
+  desc "Build and release to App Store"
+  lane :release do
+    match(type: "appstore", readonly: is_ci)
+    build_app(
+      workspace: "ios/mailapp.xcworkspace",
+      scheme: "mailapp",
+      export_method: "app-store"
+    )
+    upload_to_app_store(
+      api_key: @api_key,
+      submit_for_review: true,
+      automatic_release: false,
+      force: true
+    )
+    clean_build_artifacts
+    sh("rm -rf ../ios/build")
+  end
+end
