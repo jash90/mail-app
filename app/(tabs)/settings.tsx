@@ -8,7 +8,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
-import { resetTokens } from '@/features/auth/oauthService';
+import {
+  resetTokens,
+  resetGoogleSignInConfig,
+} from '@/features/auth/oauthService';
 import { clearTokenCache } from '@/features/gmail';
 import { clearAllData } from '@/db/client';
 import { analytics } from '@/lib/analytics';
@@ -32,6 +35,7 @@ export default function SettingsScreen() {
     clearUser();
     clearTokenCache();
     resetTokens();
+    resetGoogleSignInConfig();
     router.replace('/');
   };
 

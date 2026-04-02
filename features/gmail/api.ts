@@ -5,6 +5,7 @@ import {
   isTokenExpired,
   refreshGmailTokens,
   resetTokens,
+  resetGoogleSignInConfig,
   TOKEN_EXPIRY_BUFFER_MS,
 } from '@/features/auth/oauthService';
 import {
@@ -35,22 +36,31 @@ export const clearTokenCache = () => {
   refreshPromises.clear();
 };
 
-const handleAuthFailure = async () => {
+/**
+ * Attempt to recover from auth failure.
+ * @param skipRefresh - If true, skip the refresh attempt (already tried and failed).
+ */
+const handleAuthFailure = async (skipRefresh = false) => {
   Sentry.captureMessage('auth_failure_token_refresh', 'warning');
-  const refreshed = await refreshGmailTokens();
-  if (refreshed) {
-    cachedToken = {
-      value: refreshed.access_token,
-      expiresAt: refreshed.expiry_time - TOKEN_EXPIRY_BUFFER_MS,
-    };
-    return;
+
+  if (!skipRefresh) {
+    const refreshed = await refreshGmailTokens();
+    if (refreshed) {
+      cachedToken = {
+        value: refreshed.access_token,
+        expiresAt: refreshed.expiry_time - TOKEN_EXPIRY_BUFFER_MS,
+      };
+      return;
+    }
   }
 
+  // Refresh failed or skipped — force re-login
   authGeneration++;
   cachedToken = null;
   refreshPromises.clear();
   clearAllCooldowns();
   resetTokens();
+  resetGoogleSignInConfig();
   useAuthStore.getState().clearUser();
 };
 
@@ -75,7 +85,7 @@ export const getAccessToken = async (
       try {
         const refreshed = await refreshGmailTokens();
         if (!refreshed) {
-          await handleAuthFailure();
+          await handleAuthFailure(true); // skip retry, already failed
           throw new Error(
             'Failed to refresh Gmail tokens. Please re-authenticate.',
           );

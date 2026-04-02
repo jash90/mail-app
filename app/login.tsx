@@ -1,4 +1,8 @@
-import { storeTokens, TOKEN_LIFETIME_MS } from '@/features/auth/oauthService';
+import {
+  storeTokens,
+  TOKEN_LIFETIME_MS,
+  ensureGoogleSignInConfigured,
+} from '@/features/auth/oauthService';
 import { analytics } from '@/lib/analytics';
 import { Sentry } from '@/lib/sentry';
 import { useAuthStore } from '@/store/authStore';
@@ -13,15 +17,7 @@ export default function LoginScreen() {
   const setUser = useAuthStore((s) => s.setUser);
 
   useEffect(() => {
-    GoogleSignin.configure({
-      iosClientId:
-        '510423566915-edi6sd1aqhcs4flbbcsdht22sfre9tsf.apps.googleusercontent.com', // iOS only
-      scopes: [
-        'https://www.googleapis.com/auth/gmail.modify',
-        'https://www.googleapis.com/auth/gmail.send',
-        'https://www.googleapis.com/auth/contacts.readonly',
-      ],
-    });
+    ensureGoogleSignInConfigured();
   }, []);
 
   const signIn = async () => {
