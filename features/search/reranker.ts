@@ -3,14 +3,23 @@ import type { SearchResult } from './types';
 
 const MAX_CANDIDATES = 15;
 
-const SYSTEM_PROMPT = `You are a search relevance scorer. Given a search query and a list of emails, rate each email's relevance to the query on a scale of 0-10.
+const SYSTEM_PROMPT = `You are a search relevance scorer. Given a search query and a list of emails with contact importance tiers, rate each email's relevance on a scale of 0-10.
 
-Rules:
-- 10 = perfect match (exact topic, sender, or content)
-- 7-9 = highly relevant (related topic or sender)
-- 4-6 = somewhat relevant (tangential connection)
-- 1-3 = low relevance
+Contact importance tiers (1-5):
+- Tier 5: VIP contact (top 10% by exchange frequency, mutual communication)
+- Tier 4: Important contact (top 25%)
+- Tier 3: Regular contact
+- Tier 2: Occasional contact
+- Tier 1: Rare/unknown sender (newsletters, notifications, no-reply)
+
+Scoring rules:
+- 10 = perfect match (exact topic + important sender)
+- 7-9 = highly relevant (strong topic match OR important sender with related topic)
+- 4-6 = somewhat relevant (tangential connection, boost if high-tier sender)
+- 1-3 = low relevance (weak match, even from known senders)
 - 0 = completely irrelevant
+
+When two emails match the query equally, prefer the one from the higher-tier contact.
 
 Return ONLY a valid JSON array of numbers in the same order as the emails. Example: [9, 3, 7, 1, 5]
 No explanation, no extra text — just the JSON array.`;
@@ -22,6 +31,7 @@ No explanation, no extra text — just the JSON array.`;
 export async function rerankCandidates(
   query: string,
   candidates: SearchResult[],
+  importanceMap?: Map<string, number>,
 ): Promise<Map<string, number>> {
   const scoreMap = new Map<string, number>();
   const toRank = candidates.slice(0, MAX_CANDIDATES);
@@ -34,7 +44,15 @@ export async function rerankCandidates(
       const sender = from
         ? `${from.name ?? ''} <${from.email}>`.trim()
         : 'Unknown';
-      return `${i + 1}. Subject: "${c.thread.subject}" | From: ${sender} | Preview: "${c.thread.snippet.slice(0, 120)}" | Labels: ${c.thread.label_ids.join(', ')}`;
+      const senderEmail = from?.email?.toLowerCase() ?? '';
+      const tier = importanceMap?.get(senderEmail) ?? 1;
+      const preview = c.thread.snippet.slice(0, 120);
+      const labels = c.thread.label_ids.join(', ');
+      return (
+        `${i + 1}. Subject: "${c.thread.subject}" | From: ${sender}` +
+        ` | Importance: tier ${tier}/5 | Preview: "${preview}"` +
+        ` | Labels: ${labels}`
+      );
     })
     .join('\n');
 

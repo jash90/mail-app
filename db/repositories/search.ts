@@ -1,4 +1,4 @@
-import { db } from '../client';
+import { db, expoDb } from '../client';
 import { sql } from 'drizzle-orm';
 import {
   threads,
@@ -20,17 +20,42 @@ const CHUNK_SIZE = 500;
  * Searches across: subject, snippet, from_name, from_email, to_emails, label_names.
  */
 export function searchFTS(query: string, limit: number = 50): FTSMatch[] {
-  if (!query || query.trim().length < 2) return [];
+  if (!query || query.trim().length < 3) return [];
 
   // Sanitize query for FTS5 — escape special chars and build prefix query
   const sanitized = sanitizeFTSQuery(query);
   if (!sanitized) return [];
 
-  const rows = db.all<{ thread_id: string; rank: number }>(
-    sql`SELECT thread_id, rank FROM email_fts WHERE email_fts MATCH ${sanitized} ORDER BY rank LIMIT ${limit}`,
-  );
+  try {
+    const rows = db.all<{ thread_id: string; rank: number }>(
+      sql`SELECT thread_id, rank FROM email_fts WHERE email_fts MATCH ${sanitized} ORDER BY rank LIMIT ${limit}`,
+    );
 
-  return rows.map((r) => ({ threadId: r.thread_id, rank: r.rank }));
+    return rows.map((r) => ({ threadId: r.thread_id, rank: r.rank }));
+  } catch (e) {
+    console.warn('[searchFTS] FTS query failed:', e);
+    return [];
+  }
+}
+
+/** Check if FTS index has any data. */
+export function isFTSIndexEmpty(): boolean {
+  try {
+    const row = db.get<{ cnt: number }>(
+      sql`SELECT COUNT(*) as cnt FROM email_fts`,
+    );
+    return (row?.cnt ?? 0) === 0;
+  } catch {
+    return true;
+  }
+}
+
+/** Get local thread count for an account. */
+export function getLocalThreadCount(accountId: string): number {
+  const row = db.get<{ cnt: number }>(
+    sql`SELECT COUNT(*) as cnt FROM ${threads} WHERE ${threads.accountId} = ${accountId}`,
+  );
+  return row?.cnt ?? 0;
 }
 
 /**
@@ -127,9 +152,8 @@ export function rebuildFTSIndex(accountId: string): void {
     }
   }
 
-  // Insert into FTS in a transaction
-  db.run(sql`BEGIN`);
-  try {
+  // Insert into FTS in a transaction using expo-sqlite's native transaction
+  expoDb.withTransactionSync(() => {
     for (const t of threadRows) {
       const sender = senderMap.get(t.id);
       const toEmails = recipientMap.get(t.id) ?? '';
@@ -140,11 +164,7 @@ export function rebuildFTSIndex(accountId: string): void {
             VALUES (${t.id}, ${t.subject}, ${t.snippet}, ${sender?.name ?? ''}, ${sender?.email ?? ''}, ${toEmails}, ${labelNames})`,
       );
     }
-    db.run(sql`COMMIT`);
-  } catch (e) {
-    db.run(sql`ROLLBACK`);
-    throw e;
-  }
+  });
 }
 
 /**

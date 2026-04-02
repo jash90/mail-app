@@ -27,6 +27,7 @@ import { getThreadsPaginated } from '@/db/repositories/threads';
 import { getSyncState, upsertSyncState } from '@/db/repositories/syncState';
 import { getContactImportanceMap } from '@/db/repositories/stats';
 import { rebuildFTSIndex } from '@/db/repositories/search';
+import { resetFTSVerification } from '@/features/search/hybridSearch';
 
 const THIRTY_MINUTES = 30 * 60 * 1000;
 const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
@@ -40,7 +41,8 @@ const useGmailMutation = <TVariables>(
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn,
-    onSuccess: (_data: boolean, variables: TVariables) => {
+    onSuccess: (success: boolean, variables: TVariables) => {
+      if (!success) return;
       queryClient.invalidateQueries({ queryKey: gmailKeys.threads(accountId) });
       extraInvalidateKeys?.(variables).forEach((key) =>
         queryClient.invalidateQueries({ queryKey: key }),
@@ -110,6 +112,7 @@ export const useSync = (accountId: string) => {
     },
     onSuccess: () => {
       rebuildFTSIndex(accountId);
+      resetFTSVerification();
       queryClient.invalidateQueries({ queryKey: gmailKeys.threads(accountId) });
       queryClient.invalidateQueries({
         queryKey: ['contact-importance', accountId],
@@ -189,17 +192,26 @@ export const useTrashThread = (accountId: string) =>
 export const useDeleteThread = (accountId: string) =>
   useGmailMutation(accountId, deleteThread);
 
-/** Hybrid search: FTS5 + quick filters + optional AI reranking. */
+/**
+ * Check if local sync is sufficient for FTS search.
+ * Returns true only when sync is fully complete (no next_page_token).
+ */
+export const isSyncReady = (accountId: string): boolean => {
+  if (!accountId) return false;
+  const state = getSyncState(accountId);
+  return !!state && !state.next_page_token;
+};
+
+/** Hybrid search: FTS5 + quick filters + AI reranking with contact stats. */
 export const useSearchThreads = (accountId: string, params: SearchParams) =>
   useQuery<SearchResult[]>({
-    queryKey: gmailKeys.search(
-      accountId,
-      params.query,
-      params.filters as Record<string, unknown>,
-    ),
+    queryKey: gmailKeys.search(accountId, params.query, {
+      ...(params.filters as Record<string, unknown>),
+      useGmailApi: params.useGmailApi,
+    }),
     queryFn: () => hybridSearch(accountId, params),
-    enabled: !!accountId && params.query.length >= 2,
-    staleTime: 5 * 60 * 1000,
+    enabled: !!accountId && params.query.length >= 3,
+    staleTime: params.useGmailApi ? 60 * 1000 : 5 * 60 * 1000,
   });
 
 export const useSearchContacts = (query: string) =>
