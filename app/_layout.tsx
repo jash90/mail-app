@@ -8,6 +8,10 @@ initSentry();
 
 import { useAuthStore } from '@/store/authStore';
 import { initializeTokens } from '@/features/auth/oauthService';
+import {
+  startSyncManager,
+  stopSyncManager,
+} from '@/features/gmail/syncManager';
 import { db } from '@/db/client';
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import migrations from '../drizzle/migrations';
@@ -42,11 +46,17 @@ function RootLayout() {
   );
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
+  const user = useAuthStore((s) => s.user);
+
   useEffect(() => {
-    if (isAuthenticated) {
-      initializeTokens().catch(console.error);
+    if (isAuthenticated && user?.id) {
+      initializeTokens()
+        .then(() => startSyncManager(user.id))
+        .catch(console.error);
+    } else {
+      stopSyncManager();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.id]);
 
   useEffect(() => {
     if (migrationError) {

@@ -5,11 +5,10 @@ import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 import { prefetchSummaries } from '@/features/ai/api';
 import {
   useContactImportance,
-  useSync,
-  useSyncNextPage,
   useThreads,
   useTrashThread,
 } from '@/features/gmail';
+import { triggerManualSync } from '@/features/gmail/syncManager';
 import { TTSPlayerBar, useEmailTTSQueue } from '@/features/tts';
 import { analytics } from '@/lib/analytics';
 import { threadToEmailProps } from '@/lib/threadTransform';
@@ -31,6 +30,7 @@ import {
 export default function ListScreen() {
   const router = useRouter();
   const [searchVisible, setSearchVisible] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const user = useAuthStore((s) => s.user);
   const accountId = user?.id ?? '';
   const userEmail = user?.email ?? '';
@@ -57,69 +57,38 @@ export default function ListScreen() {
   );
   const tts = useEmailTTSQueue(unreadThreads);
 
-  const sync = useSync(accountId);
-  const syncNextPage = useSyncNextPage(accountId);
-  const isRefreshing = sync.isPending;
-
   const prefetchAbortRef = useRef<AbortController | null>(null);
   useEffect(() => {
     return () => prefetchAbortRef.current?.abort();
   }, []);
 
-  const syncMutate = sync.mutate;
-  const handleRefresh = useCallback(() => {
+  const handleRefresh = useCallback(async () => {
     if (!accountId) return;
-    syncMutate(undefined, {
-      onSuccess: () => {
-        refetch();
-        prefetchAbortRef.current?.abort();
-        const controller = new AbortController();
-        prefetchAbortRef.current = controller;
-        prefetchSummaries(accountId, controller.signal).catch((err) => {
-          if (err instanceof Error && err.name === 'AbortError') return;
-          console.warn('[ListScreen] prefetchSummaries failed:', err);
-        });
-      },
-      onError: (err) => {
-        console.error('[ListScreen] Sync failed:', err);
-      },
-    });
-  }, [syncMutate, refetch, accountId]);
-
-  const syncNextPagePendingRef = useRef(syncNextPage.isPending);
-  syncNextPagePendingRef.current = syncNextPage.isPending;
-  const syncNextPageMutate = syncNextPage.mutate;
+    setIsRefreshing(true);
+    try {
+      await triggerManualSync();
+      await refetch();
+      prefetchAbortRef.current?.abort();
+      const controller = new AbortController();
+      prefetchAbortRef.current = controller;
+      prefetchSummaries(accountId, controller.signal).catch((err) => {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        console.warn('[ListScreen] prefetchSummaries failed:', err);
+      });
+    } catch (err) {
+      console.error('[ListScreen] Refresh failed:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [refetch, accountId]);
 
   const handleEndReached = useCallback(() => {
     if (!accountId) return;
     if (hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
-    } else if (!hasNextPage && !syncNextPagePendingRef.current) {
-      syncNextPageMutate(undefined, {
-        onSuccess: (result) => {
-          if (result.synced_threads > 0) fetchNextPage();
-        },
-      });
     }
-  }, [
-    accountId,
-    hasNextPage,
-    isFetchingNextPage,
-    fetchNextPage,
-    syncNextPageMutate,
-  ]);
-
-  const didInitialSync = useRef(false);
-
-  useEffect(() => {
-    didInitialSync.current = false;
-  }, [accountId]);
-
-  useEffect(() => {
-    if (!accountId || didInitialSync.current || sync.isPending) return;
-    didInitialSync.current = true;
-    handleRefresh();
-  }, [accountId, handleRefresh, sync.isPending]);
+    // SyncManager handles pagination automatically — no need to trigger here
+  }, [accountId, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleCompose = () => {
     analytics.emailComposed();
@@ -182,7 +151,6 @@ export default function ListScreen() {
         <Pressable
           className="rounded-full bg-white/10 px-6 py-3"
           onPress={() => {
-            didInitialSync.current = false;
             refetch();
             handleRefresh();
           }}
@@ -242,7 +210,7 @@ export default function ListScreen() {
           onEndReached={handleEndReached}
           onEndReachedThreshold={0.5}
           ListFooterComponent={
-            isFetchingNextPage || syncNextPage.isPending ? (
+            isFetchingNextPage ? (
               <View className="py-4">
                 <ActivityIndicator color="white" />
               </View>
