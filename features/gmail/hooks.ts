@@ -6,6 +6,8 @@ import {
   type QueryKey,
 } from '@tanstack/react-query';
 import type { ComposeEmailData } from '@/types';
+import type { SearchParams, SearchResult } from '@/features/search/types';
+import { hybridSearch } from '@/features/search/hybridSearch';
 import { gmailKeys } from './queryKeys';
 import { getThread } from './threads';
 import { getThreadMessages } from './messages';
@@ -24,6 +26,7 @@ import { performIncrementalSync, performFullSync, syncNextPage } from './sync';
 import { getThreadsPaginated } from '@/db/repositories/threads';
 import { getSyncState, upsertSyncState } from '@/db/repositories/syncState';
 import { getContactImportanceMap } from '@/db/repositories/stats';
+import { rebuildFTSIndex } from '@/db/repositories/search';
 
 const THIRTY_MINUTES = 30 * 60 * 1000;
 const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
@@ -106,6 +109,7 @@ export const useSync = (accountId: string) => {
       return result;
     },
     onSuccess: () => {
+      rebuildFTSIndex(accountId);
       queryClient.invalidateQueries({ queryKey: gmailKeys.threads(accountId) });
       queryClient.invalidateQueries({
         queryKey: ['contact-importance', accountId],
@@ -184,6 +188,19 @@ export const useTrashThread = (accountId: string) =>
 
 export const useDeleteThread = (accountId: string) =>
   useGmailMutation(accountId, deleteThread);
+
+/** Hybrid search: FTS5 + quick filters + optional AI reranking. */
+export const useSearchThreads = (accountId: string, params: SearchParams) =>
+  useQuery<SearchResult[]>({
+    queryKey: gmailKeys.search(
+      accountId,
+      params.query,
+      params.filters as Record<string, unknown>,
+    ),
+    queryFn: () => hybridSearch(accountId, params),
+    enabled: !!accountId && params.query.length >= 2,
+    staleTime: 5 * 60 * 1000,
+  });
 
 export const useSearchContacts = (query: string) =>
   useQuery({

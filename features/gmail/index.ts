@@ -35,6 +35,7 @@ export {
   useArchiveThread,
   useTrashThread,
   useDeleteThread,
+  useSearchThreads,
 } from './hooks';
 export type {
   GmailThread,
