@@ -14,7 +14,9 @@ export interface QuickFilters {
 export interface SearchParams {
   query: string;
   filters: QuickFilters;
-  useAI: boolean;
+  importanceMap?: Map<string, number>;
+  /** When true, search falls back to Gmail API instead of local FTS. */
+  useGmailApi?: boolean;
 }
 
 /** Single search result with scoring */
@@ -22,6 +24,7 @@ export interface SearchResult {
   thread: EmailThread;
   ftsScore: number;
   aiScore?: number;
+  contactImportance?: number;
   finalScore: number;
 }
 
