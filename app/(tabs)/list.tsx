@@ -1,4 +1,5 @@
 import EmailComponent from '@/components/EmailComponent';
+import SearchModal from '@/components/SearchModal';
 import { ListSkeleton } from '@/components/skeletons';
 import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 import { prefetchSummaries } from '@/features/ai/api';
@@ -17,7 +18,7 @@ import type { EmailThread } from '@/types';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -29,6 +30,7 @@ import {
 
 export default function ListScreen() {
   const router = useRouter();
+  const [searchVisible, setSearchVisible] = useState(false);
   const user = useAuthStore((s) => s.user);
   const accountId = user?.id ?? '';
   const userEmail = user?.email ?? '';
@@ -195,13 +197,22 @@ export default function ListScreen() {
     <StyledSafeAreaView className="flex-1 bg-black p-4" edges={['top']}>
       <View className="flex-row items-center justify-between p-2">
         <Text className="text-4xl font-bold text-white">AI Mail</Text>
-        <Pressable
-          className="flex-row items-center"
-          onPress={() => router.push('/summary')}
-        >
-          <Icon name="magic-wand" size={18} color="#818cf8" />
-        </Pressable>
+        <View className="flex-row items-center gap-5">
+          <Pressable onPress={() => setSearchVisible(true)} hitSlop={8}>
+            <Icon name="magnifier" size={18} color="#818cf8" />
+          </Pressable>
+          <Pressable onPress={() => router.push('/summary')}>
+            <Icon name="magic-wand" size={18} color="#818cf8" />
+          </Pressable>
+        </View>
       </View>
+
+      <SearchModal
+        visible={searchVisible}
+        onClose={() => setSearchVisible(false)}
+        accountId={accountId}
+        importanceMap={importanceMap}
+      />
 
       <TTSPlayerBar
         state={tts.state}

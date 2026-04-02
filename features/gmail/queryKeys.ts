@@ -16,4 +16,16 @@ export const gmailKeys = {
     [...gmailKeys.all, 'labels', accountId] as const,
   contacts: (query: string) => [...gmailKeys.all, 'contacts', query] as const,
   stats: (accountId: string) => [...gmailKeys.all, 'stats', accountId] as const,
+  search: (
+    accountId: string,
+    query: string,
+    filters: Record<string, unknown>,
+  ) =>
+    [
+      ...gmailKeys.all,
+      'search',
+      accountId,
+      query,
+      JSON.stringify(filters),
+    ] as const,
 };
