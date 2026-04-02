@@ -40,7 +40,8 @@ const useGmailMutation = <TVariables>(
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn,
-    onSuccess: (_data: boolean, variables: TVariables) => {
+    onSuccess: (success: boolean, variables: TVariables) => {
+      if (!success) return; // API call failed (e.g. 404) — don't invalidate
       queryClient.invalidateQueries({ queryKey: gmailKeys.threads(accountId) });
       extraInvalidateKeys?.(variables).forEach((key) =>
         queryClient.invalidateQueries({ queryKey: key }),

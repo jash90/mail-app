@@ -168,6 +168,8 @@ export function getThreadsPaginated(
               .where(
                 and(
                   eq(threads.accountId, accountId),
+                  eq(threads.isTrashed, false),
+                  eq(threads.isArchived, false),
                   inArray(threadLabels.labelId, batch),
                 ),
               )
@@ -201,7 +203,13 @@ export function getThreadsPaginated(
     : db
         .select()
         .from(threads)
-        .where(eq(threads.accountId, accountId))
+        .where(
+          and(
+            eq(threads.accountId, accountId),
+            eq(threads.isTrashed, false),
+            eq(threads.isArchived, false),
+          ),
+        )
         .orderBy(orderBy, desc(threads.lastMessageAt))
         .limit(limit)
         .offset(offset)
