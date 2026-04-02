@@ -2,6 +2,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { performIncrementalSync, performFullSync, syncNextPage } from './sync';
 import { getSyncState, upsertSyncState } from '@/db/repositories/syncState';
 import { rebuildFTSIndex } from '@/db/repositories/search';
+import { resetFTSVerification } from '@/features/search/hybridSearch';
 import { queryClient } from '@/lib/queryClient';
 import { gmailKeys } from './queryKeys';
 
@@ -25,6 +26,7 @@ function invalidateCaches(rebuildFts = true) {
   if (!accountId) return;
   if (rebuildFts) {
     rebuildFTSIndex(accountId);
+    resetFTSVerification();
   }
   queryClient.invalidateQueries({ queryKey: gmailKeys.threads(accountId) });
   queryClient.invalidateQueries({
