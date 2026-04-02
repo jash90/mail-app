@@ -21,3 +21,13 @@ export const RATE_LIMIT = {
   baseDelayMs: 1000,
   maxDelayMs: 30_000,
 };
+
+export const GOOGLE_AUTH = {
+  iosClientId:
+    '510423566915-edi6sd1aqhcs4flbbcsdht22sfre9tsf.apps.googleusercontent.com',
+  scopes: [
+    'https://www.googleapis.com/auth/gmail.modify',
+    'https://www.googleapis.com/auth/gmail.send',
+    'https://www.googleapis.com/auth/contacts.readonly',
+  ],
+};
