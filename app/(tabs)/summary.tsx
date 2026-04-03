@@ -67,9 +67,11 @@ const SummaryItemRow = memo(function SummaryItemRow({
 });
 
 export default function SummaryScreen() {
-  const accountId = useAuthStore((s) => s.user?.id) ?? '';
+  const user = useAuthStore((s) => s.user);
+  const accountId = user?.id ?? '';
+  const userEmail = user?.email ?? '';
   const { items, processed, total, retrySummary, clearAll } =
-    useSummaryPipeline(accountId);
+    useSummaryPipeline(accountId, userEmail);
 
   const renderItem = useCallback(
     ({ item, index }: { item: SummaryItem; index: number }) => (

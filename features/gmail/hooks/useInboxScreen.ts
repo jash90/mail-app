@@ -60,16 +60,18 @@ export function useInboxScreen() {
       prefetchAbortRef.current?.abort();
       const controller = new AbortController();
       prefetchAbortRef.current = controller;
-      prefetchSummaries(accountId, controller.signal).catch((err) => {
-        if (err instanceof Error && err.name === 'AbortError') return;
-        console.warn('[InboxScreen] prefetchSummaries failed:', err);
-      });
+      prefetchSummaries(accountId, controller.signal, userEmail).catch(
+        (err) => {
+          if (err instanceof Error && err.name === 'AbortError') return;
+          console.warn('[InboxScreen] prefetchSummaries failed:', err);
+        },
+      );
     } catch (err) {
       console.error('[InboxScreen] Refresh failed:', err);
     } finally {
       setIsRefreshing(false);
     }
-  }, [refetch, accountId]);
+  }, [refetch, accountId, userEmail]);
 
   const handleEndReached = useCallback(() => {
     if (!accountId) return;

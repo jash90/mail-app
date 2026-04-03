@@ -1,7 +1,10 @@
 import { getUnreadThreads } from '@/db/repositories/threads';
+import { getContactImportanceMap } from '@/db/repositories/stats';
 import { getSummaryCache, summarizeEmail } from '@/features/ai/api';
 import type { EmailThread } from '@/types';
 import { useCallback, useEffect, useRef, useState } from 'react';
+
+const MIN_SUMMARY_TIER = 4;
 
 export interface SummaryItem {
   thread: EmailThread;
@@ -10,17 +13,25 @@ export interface SummaryItem {
   error: string | null;
 }
 
-export function useSummaryPipeline(accountId: string) {
+export function useSummaryPipeline(accountId: string, userEmail: string) {
   const [items, setItems] = useState<SummaryItem[]>([]);
   const [processed, setProcessed] = useState(0);
   const cancelledRef = useRef(false);
   const retryAbortMapRef = useRef(new Map<number, AbortController>());
 
   useEffect(() => {
-    if (!accountId) return;
+    if (!accountId || !userEmail) return;
     cancelledRef.current = false;
     const abortController = new AbortController();
-    const threads = getUnreadThreads(accountId, 20);
+    const allThreads = getUnreadThreads(accountId, 50);
+
+    // Filter to only highest-tier contacts (tier >= MIN_SUMMARY_TIER)
+    const importanceMap = getContactImportanceMap(accountId, userEmail);
+    const threads = allThreads.filter((t) => {
+      const email = t.participants[0]?.email?.toLowerCase() ?? '';
+      const tier = importanceMap.get(email) ?? 1;
+      return tier >= MIN_SUMMARY_TIER;
+    });
 
     if (threads.length === 0) {
       setItems([]);
@@ -84,52 +95,49 @@ export function useSummaryPipeline(accountId: string) {
       for (const ctrl of retryAbortMap.values()) ctrl.abort();
       retryAbortMap.clear();
     };
-  }, [accountId]);
+  }, [accountId, userEmail]);
 
-  const retrySummary = useCallback(
-    async (index: number, item: SummaryItem) => {
+  const retrySummary = useCallback(async (index: number, item: SummaryItem) => {
+    setItems((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], loading: true, error: null };
+      return updated;
+    });
+
+    const abort = new AbortController();
+    retryAbortMapRef.current.set(index, abort);
+
+    try {
+      const summary = await summarizeEmail(
+        item.thread.id,
+        item.thread.subject,
+        item.thread.snippet,
+        abort.signal,
+      );
+      if (abort.signal.aborted) return;
       setItems((prev) => {
         const updated = [...prev];
-        updated[index] = { ...updated[index], loading: true, error: null };
+        updated[index] = { ...updated[index], summary, loading: false };
         return updated;
       });
-
-      const abort = new AbortController();
-      retryAbortMapRef.current.set(index, abort);
-
-      try {
-        const summary = await summarizeEmail(
-          item.thread.id,
-          item.thread.subject,
-          item.thread.snippet,
-          abort.signal,
-        );
-        if (abort.signal.aborted) return;
-        setItems((prev) => {
-          const updated = [...prev];
-          updated[index] = { ...updated[index], summary, loading: false };
-          return updated;
-        });
-      } catch (err) {
-        if (abort.signal.aborted) return;
-        console.warn(
-          `[SummaryPipeline] Retry failed for thread ${item.thread.id}`,
-        );
-        setItems((prev) => {
-          const updated = [...prev];
-          updated[index] = {
-            ...updated[index],
-            loading: false,
-            error: err instanceof Error ? err.message : 'Unknown error',
-          };
-          return updated;
-        });
-      } finally {
-        retryAbortMapRef.current.delete(index);
-      }
-    },
-    [],
-  );
+    } catch (err) {
+      if (abort.signal.aborted) return;
+      console.warn(
+        `[SummaryPipeline] Retry failed for thread ${item.thread.id}`,
+      );
+      setItems((prev) => {
+        const updated = [...prev];
+        updated[index] = {
+          ...updated[index],
+          loading: false,
+          error: err instanceof Error ? err.message : 'Unknown error',
+        };
+        return updated;
+      });
+    } finally {
+      retryAbortMapRef.current.delete(index);
+    }
+  }, []);
 
   const clearAll = useCallback(() => {
     setItems([]);
