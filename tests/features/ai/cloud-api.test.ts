@@ -7,7 +7,19 @@
 process.env.EXPO_PUBLIC_ZAI_API_KEY = 'test-api-key';
 
 jest.mock('@/config/constants', () => ({
-  AI: { model: 'test-model', temperature: 0.7, timeoutMs: 5000 },
+  AI: {
+    backend: 'zai',
+    zai: {
+      model: 'test-model',
+      baseUrl: 'https://api.z.ai/api/coding/paas/v4',
+    },
+    openrouter: {
+      model: 'test-or-model',
+      baseUrl: 'https://openrouter.ai/api/v1',
+    },
+    temperature: 0.7,
+    timeoutMs: 5000,
+  },
 }));
 
 import { chatCompletion } from '@/features/ai/cloud-api';
