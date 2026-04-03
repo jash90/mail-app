@@ -1,6 +1,6 @@
 import { db } from '@/db/client';
 import { aiTokenUsage } from '@/db/schema';
-import { sql, desc, eq } from 'drizzle-orm';
+import { sql, desc } from 'drizzle-orm';
 
 // ── Types ─────────────────────────────────────────────────────────────
 

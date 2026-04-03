@@ -212,7 +212,7 @@ function RecentList({ data }: { data: RecentUsageEntry[] }) {
 // ── Main Screen ───────────────────────────────────────────────────────
 
 export default function AITokensScreen() {
-  const { stats, refresh, reset } = useAITokenStats();
+  const { stats, reset } = useAITokenStats();
 
   const handleReset = useCallback(() => {
     Alert.alert(
