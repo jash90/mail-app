@@ -1,3 +1,4 @@
+import { DismissableErrorBoundary } from '@/components/DismissableErrorBoundary';
 import { useThreadScreen } from '@/features/gmail/hooks/useThreadScreen';
 import { ThreadMessageItem } from '@/components/ThreadMessageItem';
 import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
@@ -11,6 +12,8 @@ import {
   Pressable,
   View,
 } from 'react-native';
+
+export { DismissableErrorBoundary as ErrorBoundary };
 
 const scrollContentStyle = { paddingBottom: 120 } as const;
 
