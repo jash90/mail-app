@@ -59,7 +59,6 @@ export default function SearchResults({
           data={results}
           keyExtractor={(item: SearchResult) => item.thread.id}
           renderItem={renderItem}
-          estimatedItemSize={80}
           keyboardShouldPersistTaps="handled"
           ListHeaderComponent={
             <Text className="mb-2 text-xs text-gray-500">
