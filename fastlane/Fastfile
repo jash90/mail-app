@@ -16,6 +16,7 @@ platform :ios do
   desc "Build and upload to TestFlight"
   lane :beta do
     match(type: "appstore", readonly: is_ci)
+    sh("cd ../ios && pod install")
     increment_build_number(xcodeproj: "ios/mailapp.xcodeproj")
     build_app(
       workspace: "ios/mailapp.xcworkspace",
@@ -33,6 +34,7 @@ platform :ios do
   desc "Build and release to App Store"
   lane :release do
     match(type: "appstore", readonly: is_ci)
+    sh("cd ../ios && pod install")
     build_app(
       workspace: "ios/mailapp.xcworkspace",
       scheme: "mailapp",

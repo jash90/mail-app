@@ -30,40 +30,6 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-    "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#000000"
-        }
-      ],
-      [
-        "@react-native-google-signin/google-signin",
-        {
-          "iosUrlScheme": "com.googleusercontent.apps.510423566915-edi6sd1aqhcs4flbbcsdht22sfre9tsf"
-        }
-      ],
-      "expo-secure-store",
-      "expo-sqlite",
-      "expo-audio",
-      "react-native-nitro-archive",
-      [
-        "./plugins/withMinDeploymentTarget",
-        "16.0"
-      ],
-      "llama.rn",
-      [
-        "@sentry/react-native/expo",
-        {
-          "organization": "raccoon-software",
-          "project": "mail-app"
-        }
-      ]
-    ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

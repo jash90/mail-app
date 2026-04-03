@@ -4,17 +4,26 @@ import { gmailRequest } from './api';
 import { getLabels } from './labels';
 import { listThreads, batchGetThreads } from './threads';
 import { getSyncState, upsertSyncState } from '@/db/repositories/syncState';
+import { SyncError } from '@/lib/errors';
 
 const handleSyncError = (
   result: SyncResult,
   error: unknown,
   fallbackMessage: string,
+  code: ConstructorParameters<typeof SyncError>[0] = 'API_ERROR',
 ): SyncResult => {
-  const message = error instanceof Error ? error.message : fallbackMessage;
+  const syncErr =
+    error instanceof SyncError
+      ? error
+      : new SyncError(
+          code,
+          error instanceof Error ? error.message : fallbackMessage,
+          error,
+        );
   result.success = false;
-  result.errors.push(message);
+  result.errors.push(syncErr.message);
   result.new_sync_state.status = 'error';
-  result.new_sync_state.error_message = message;
+  result.new_sync_state.error_message = syncErr.message;
   return result;
 };
 
@@ -78,7 +87,7 @@ export const performIncrementalSync = async (
       return performFullSync(accountId);
     }
 
-    return handleSyncError(result, error, 'Sync failed');
+    return handleSyncError(result, error, 'Sync failed', 'API_ERROR');
   }
 };
 
