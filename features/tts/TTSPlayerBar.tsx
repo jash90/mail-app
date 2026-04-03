@@ -1,7 +1,7 @@
 import { memo, Fragment } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
-import type { TTSQueueState } from './useEmailTTSQueue';
+import type { TTSQueueState } from './types';
 
 const HIT_SLOP = { top: 12, bottom: 12, left: 12, right: 12 };
 
