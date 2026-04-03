@@ -54,3 +54,4 @@ app-example
 
 # Test coverage
 coverage/
+fastlane/report.xml
