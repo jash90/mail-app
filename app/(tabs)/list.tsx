@@ -1,4 +1,5 @@
 import EmailComponent from '@/components/EmailComponent';
+import FolderPickerModal, { getLabelDisplayName } from '@/components/FolderPickerModal';
 import SearchModal from '@/components/search';
 import { ListSkeleton } from '@/components/skeletons';
 import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
@@ -8,7 +9,6 @@ import { threadToEmailProps } from '@/lib/threadTransform';
 import type { EmailThread } from '@/types';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
 import { FlashList } from '@shopify/flash-list';
-import { useRouter } from 'expo-router';
 import { useCallback } from 'react';
 import {
   ActivityIndicator,
@@ -19,7 +19,6 @@ import {
 } from 'react-native';
 
 export default function ListScreen() {
-  const router = useRouter();
   const {
     accountId,
     threads,
@@ -28,6 +27,11 @@ export default function ListScreen() {
     isRefreshing,
     isFetchingNextPage,
     importanceMap,
+    labels,
+    selectedLabel,
+    setSelectedLabel,
+    folderPickerVisible,
+    setFolderPickerVisible,
     tts,
     searchVisible,
     setSearchVisible,
@@ -71,16 +75,28 @@ export default function ListScreen() {
   return (
     <StyledSafeAreaView className="flex-1 bg-black p-4" edges={['top']}>
       <View className="flex-row items-center justify-between p-2">
-        <Text className="text-4xl font-bold text-white">AI Mail</Text>
-        <View className="flex-row items-center gap-5">
-          <Pressable onPress={() => setSearchVisible(true)} hitSlop={8}>
-            <Icon name="magnifier" size={18} color="#818cf8" />
-          </Pressable>
-          <Pressable onPress={() => router.push('/summary')}>
-            <Icon name="magic-wand" size={18} color="#818cf8" />
-          </Pressable>
-        </View>
+        <Pressable
+          onPress={() => setFolderPickerVisible(true)}
+          className="flex-row items-center gap-2"
+        >
+          <Icon name="folder" size={20} color="#818cf8" />
+          <Text className="text-4xl font-bold text-white">
+            {getLabelDisplayName(selectedLabel, labels)}
+          </Text>
+          <Icon name="arrow-down" size={12} color="#a1a1aa" />
+        </Pressable>
+        <Pressable onPress={() => setSearchVisible(true)} hitSlop={8}>
+          <Icon name="magnifier" size={18} color="#818cf8" />
+        </Pressable>
       </View>
+
+      <FolderPickerModal
+        visible={folderPickerVisible}
+        onClose={() => setFolderPickerVisible(false)}
+        labels={labels ?? []}
+        selectedLabel={selectedLabel}
+        onSelect={setSelectedLabel}
+      />
 
       <SearchModal
         visible={searchVisible}
