@@ -3,7 +3,7 @@ import { ActivityIndicator, Text, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import EmailComponent from '../EmailComponent';
 import { threadToEmailProps } from '@/lib/threadTransform';
-import type { SearchResult } from '@/features/search/types';
+import type { SearchResult } from '@/features/search';
 
 interface SearchResultsProps {
   results: SearchResult[];

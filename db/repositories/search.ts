@@ -11,7 +11,7 @@ import {
 } from '../schema';
 import { eq, inArray, asc } from 'drizzle-orm';
 import { chunk } from '@/lib/chunk';
-import type { FTSMatch } from '@/features/search/types';
+import type { FTSMatch } from '@/features/search';
 
 const CHUNK_SIZE = 500;
 

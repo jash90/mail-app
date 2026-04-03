@@ -1,6 +1,6 @@
 import { chunk } from '@/lib/chunk';
 import type { EmailThread } from '@/types';
-import type { QuickFilters } from '@/features/search/types';
+import type { QuickFilters } from '@/features/search';
 import { and, eq, gt, inArray, sql } from 'drizzle-orm';
 import { db } from '../../client';
 import { threadLabels, threads } from '../../schema';

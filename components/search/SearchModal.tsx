@@ -3,7 +3,7 @@ import { Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
 import { useLabels, useSearchThreads, isSyncReady } from '@/features/gmail';
-import type { SearchParams } from '@/features/search/types';
+import type { SearchParams } from '@/features/search';
 import type { EmailLabel } from '@/types';
 import SearchInput from './SearchInput';
 import SearchFilters from './SearchFilters';

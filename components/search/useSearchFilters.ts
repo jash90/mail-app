@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { QuickFilters } from '@/features/search/types';
+import type { QuickFilters } from '@/features/search';
 
 export const TIME_RANGES = [
   { key: 'week', label: '7 days' },

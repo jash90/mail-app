@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
-import type { QuickFilters } from '@/features/search/types';
+import type { QuickFilters } from '@/features/search';
 import type { EmailLabel } from '@/types';
 import FilterChip from './FilterChip';
 import {
