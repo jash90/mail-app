@@ -22,9 +22,7 @@ export const AI = {
   },
 
   openrouter: {
-    model:
-      process.env.EXPO_PUBLIC_OPENROUTER_MODEL ??
-      'google/gemini-2.0-flash-001',
+    model: process.env.EXPO_PUBLIC_OPENROUTER_MODEL ?? 'qwen/qwen3.6-plus:free',
     baseUrl: 'https://openrouter.ai/api/v1',
   },
 
