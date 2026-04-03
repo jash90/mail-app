@@ -1,0 +1,28 @@
+appId: com.jash.mail-app
+name: "Settings Screen Flow"
+tags:
+  - settings
+---
+- launchApp
+
+- extendedWaitUntil:
+    visible: "AI Mail"
+    timeout: 20000
+
+# Tap Settings tab — 3rd of 4 icons in tab bar
+- tapOn:
+    point: "62%,98%"
+
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 10000
+
+- takeScreenshot: settings-loaded
+
+# Go back to Inbox tab — 1st of 4 icons
+- tapOn:
+    point: "12%,98%"
+
+- extendedWaitUntil:
+    visible: "AI Mail"
+    timeout: 5000

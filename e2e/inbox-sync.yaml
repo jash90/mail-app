@@ -1,0 +1,29 @@
+appId: com.jash.mail-app
+name: "Inbox Sync Flow"
+tags:
+  - critical
+  - sync
+---
+- launchApp:
+    clearState: true
+
+# Wait for app — could be login or inbox
+- extendedWaitUntil:
+    visible: "AI Mail|Continue with Gmail"
+    timeout: 20000
+
+- takeScreenshot: app-loaded
+
+# If on login screen, we can't test sync — skip gracefully
+- runFlow:
+    when:
+      visible: "AI Mail"
+    commands:
+      # Pull to refresh
+      - swipe:
+          direction: DOWN
+          duration: 500
+      - extendedWaitUntil:
+          visible: "AI Mail"
+          timeout: 15000
+      - takeScreenshot: inbox-after-refresh

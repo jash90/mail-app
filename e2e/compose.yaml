@@ -1,0 +1,30 @@
+appId: com.jash.mail-app
+name: "Compose Email Flow"
+tags:
+  - critical
+  - compose
+---
+- launchApp
+
+- extendedWaitUntil:
+    visible: "AI Mail"
+    timeout: 20000
+
+# Tap compose FAB — bottom-right, above tab bar
+- tapOn:
+    point: "87%,90%"
+
+- waitForAnimationToEnd
+
+- takeScreenshot: compose-screen
+
+# Verify compose screen elements
+- assertVisible: "Compose"
+
+# Close compose via ✕ button (top-right)
+- tapOn:
+    point: "93%,7%"
+
+- extendedWaitUntil:
+    visible: "AI Mail"
+    timeout: 5000
