@@ -5,6 +5,7 @@ import { rebuildFTSIndex } from '@/db/repositories/search';
 import { resetFTSVerification } from '@/features/search';
 import { queryClient } from '@/lib/queryClient';
 import { gmailKeys } from './queryKeys';
+import { Sentry } from '@/lib/sentry';
 
 const INCREMENTAL_SYNC_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
 const PAGE_SYNC_DELAY_MS = 1_500; // delay between page fetches to avoid rate limits
@@ -68,6 +69,11 @@ async function runSyncCycle(): Promise<void> {
     }
   } catch (e) {
     console.warn('[SyncManager] Sync cycle failed:', e);
+    Sentry.addBreadcrumb({
+      category: 'sync',
+      message: 'Sync cycle failed',
+      level: 'warning',
+    });
     status = wasPaginating ? 'paginating' : 'idle';
     // If was paginating, resume pagination
     if (wasPaginating) schedulePaginationStep();
