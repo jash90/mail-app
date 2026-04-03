@@ -53,7 +53,7 @@ export default function SearchFilters({
   }, [filters, labelList]);
 
   return (
-    <>
+    <View>
       {/* Filters header — toggle expand/collapse */}
       <Pressable
         className="mb-2 flex-row items-center justify-between"
@@ -78,29 +78,27 @@ export default function SearchFilters({
 
       {/* Active filter chips (shown when collapsed) */}
       {!expanded && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          className="mb-3"
-        >
-          <View className="flex-row items-center gap-2">
-            {activeFilterSummary.length > 0 ? (
-              activeFilterSummary.map((label) => (
-                <View
-                  key={label}
-                  className="flex-row items-center gap-1.5 rounded-full bg-indigo-500/20 px-3 py-1.5"
-                >
-                  <View className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
-                  <Text className="text-xs font-medium text-indigo-300">
-                    {label}
-                  </Text>
-                </View>
-              ))
-            ) : (
-              <Text className="text-xs text-gray-600">No filters</Text>
-            )}
-          </View>
-        </ScrollView>
+        <View className="mb-3">
+          {activeFilterSummary.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View className="flex-row items-center gap-2">
+                {activeFilterSummary.map((label) => (
+                  <View
+                    key={label}
+                    className="flex-row items-center gap-1.5 rounded-full bg-indigo-500/20 px-3 py-1.5"
+                  >
+                    <View className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
+                    <Text className="text-xs font-medium text-indigo-300">
+                      {label}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
+          ) : (
+            <Text className="text-xs text-gray-600">No filters</Text>
+          )}
+        </View>
       )}
 
       {/* Expanded filters panel */}
@@ -120,6 +118,7 @@ export default function SearchFilters({
                 label={f.label}
                 active={!!filters[f.key]}
                 onPress={() => onToggleFilter(f.key)}
+                icon={'icon' in f ? (f.icon as string) : undefined}
               />
             ))}
           </View>
@@ -161,6 +160,6 @@ export default function SearchFilters({
           )}
         </ScrollView>
       )}
-    </>
+    </View>
   );
 }
