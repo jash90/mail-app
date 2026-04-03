@@ -161,6 +161,25 @@ export const summaryCache = sqliteTable('summary_cache', {
   createdAt: text('created_at').notNull(),
 });
 
+export const aiTokenUsage = sqliteTable(
+  'ai_token_usage',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    provider: text('provider').notNull(), // 'zai' | 'openrouter' | 'local'
+    model: text('model').notNull(),
+    operation: text('operation').notNull(), // 'compose' | 'reply' | 'summary' | 'rerank'
+    promptTokens: integer('prompt_tokens').notNull().default(0),
+    completionTokens: integer('completion_tokens').notNull().default(0),
+    totalTokens: integer('total_tokens').notNull().default(0),
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => [
+    index('idx_ai_token_usage_created').on(table.createdAt),
+    index('idx_ai_token_usage_provider').on(table.provider),
+    index('idx_ai_token_usage_operation').on(table.operation),
+  ],
+);
+
 export const syncState = sqliteTable('sync_state', {
   accountId: text('account_id').primaryKey(),
   historyId: text('history_id'),

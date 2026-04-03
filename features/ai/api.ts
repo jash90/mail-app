@@ -78,7 +78,7 @@ export async function summarizeEmail(
     { role: 'user', content: userMsg },
   ];
 
-  const summary = await getProvider().generate(messages, signal);
+  const summary = await getProvider().generate(messages, signal, 'summary');
 
   setSummaryCache(threadId, summary);
   return summary;
@@ -134,6 +134,7 @@ export async function generateEmail(
       { role: 'user', content: userMsg },
     ],
     signal,
+    'compose',
   );
 }
 
@@ -163,5 +164,6 @@ export async function generateReply(
       { role: 'user', content: userMsg },
     ],
     signal,
+    'reply',
   );
 }

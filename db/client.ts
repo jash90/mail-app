@@ -14,6 +14,7 @@ export function clearAllData() {
     expoDb.execSync('PRAGMA foreign_keys = OFF');
     expoDb.execSync(`
       BEGIN;
+      DELETE FROM ai_token_usage;
       DELETE FROM summary_cache;
       DELETE FROM attachments;
       DELETE FROM message_recipients;

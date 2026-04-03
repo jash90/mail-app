@@ -1,6 +1,12 @@
 import type { ChatMessage } from './types';
 import { AI } from '@/config/constants';
 import { AIProviderError } from '@/lib/errors';
+import {
+  TOKEN_TRACKING_ENABLED,
+  recordTokenUsage,
+  estimateTokens,
+  type AiOperation,
+} from './tokenTracker';
 
 // ── API Keys ──────────────────────────────────────────────────────────
 
@@ -9,10 +15,14 @@ const OPENROUTER_API_KEY = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY ?? '';
 
 if (__DEV__) {
   if (AI.backend === 'zai' && !ZAI_API_KEY) {
-    console.warn('[AI] EXPO_PUBLIC_ZAI_API_KEY is not set — Z.AI calls will fail');
+    console.warn(
+      '[AI] EXPO_PUBLIC_ZAI_API_KEY is not set — Z.AI calls will fail',
+    );
   }
   if (AI.backend === 'openrouter' && !OPENROUTER_API_KEY) {
-    console.warn('[AI] EXPO_PUBLIC_OPENROUTER_API_KEY is not set — OpenRouter calls will fail');
+    console.warn(
+      '[AI] EXPO_PUBLIC_OPENROUTER_API_KEY is not set — OpenRouter calls will fail',
+    );
   }
 }
 
@@ -22,6 +32,11 @@ interface ChatCompletionResponse {
   choices: Array<{
     message: { content: string };
   }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
 }
 
 // ── Z.AI error handling ───────────────────────────────────────────────
@@ -107,6 +122,7 @@ function parseErrorMessage(
 export async function chatCompletion(
   messages: ChatMessage[],
   signal?: AbortSignal,
+  operation: AiOperation = 'compose',
 ): Promise<string> {
   const config = getBackendConfig();
   const controller = new AbortController();
@@ -151,6 +167,24 @@ export async function chatCompletion(
         `${config.label} returned empty response`,
       );
     }
+
+    if (TOKEN_TRACKING_ENABLED) {
+      const promptText = messages.map((m) => m.content).join('');
+      const promptTokens =
+        data.usage?.prompt_tokens ?? estimateTokens(promptText);
+      const completionTokens =
+        data.usage?.completion_tokens ?? estimateTokens(content);
+      recordTokenUsage({
+        provider: AI.backend,
+        model: config.model,
+        operation,
+        promptTokens,
+        completionTokens,
+        totalTokens:
+          data.usage?.total_tokens ?? promptTokens + completionTokens,
+      });
+    }
+
     return content;
   } finally {
     clearTimeout(timeout);

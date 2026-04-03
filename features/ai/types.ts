@@ -5,7 +5,11 @@ export interface ChatMessage {
 
 export interface AiProvider {
   name: 'cloud' | 'local';
-  generate(messages: ChatMessage[], signal?: AbortSignal): Promise<string>;
+  generate(
+    messages: ChatMessage[],
+    signal?: AbortSignal,
+    operation?: import('./tokenTracker').AiOperation,
+  ): Promise<string>;
 }
 
 export interface LocalModel {
