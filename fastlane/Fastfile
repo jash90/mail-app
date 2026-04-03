@@ -17,6 +17,7 @@ platform :ios do
   lane :beta do
     match(type: "appstore", readonly: is_ci)
     sh("cd ../ios && pod install")
+    increment_version_number(bump_type: "patch", xcodeproj: "ios/mailapp.xcodeproj")
     increment_build_number(xcodeproj: "ios/mailapp.xcodeproj")
     build_app(
       workspace: "ios/mailapp.xcworkspace",
@@ -35,6 +36,8 @@ platform :ios do
   lane :release do
     match(type: "appstore", readonly: is_ci)
     sh("cd ../ios && pod install")
+    increment_version_number(bump_type: "patch", xcodeproj: "ios/mailapp.xcodeproj")
+    increment_build_number(xcodeproj: "ios/mailapp.xcodeproj")
     build_app(
       workspace: "ios/mailapp.xcworkspace",
       scheme: "mailapp",
