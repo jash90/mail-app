@@ -51,3 +51,6 @@ app-example
 *.dSYM.zip
 *.aab
 *.apk
+
+# Test coverage
+coverage/
