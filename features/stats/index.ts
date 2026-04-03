@@ -6,4 +6,5 @@ export type {
   StatMessage,
 } from './types';
 export { fetchAllMessages } from './fetchAllMessages';
+export type { FetchAllMessagesResult } from './fetchAllMessages';
 export { useEmailStats } from './hooks';
