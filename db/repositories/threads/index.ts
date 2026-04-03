@@ -1,15 +1,18 @@
-// Barrel re-export — all consumers keep importing from '@/db/repositories/threads'
+export { upsertThreads } from './upsert';
 export {
-  upsertThreads,
   type SortMode,
   getThreadsPaginated,
   getUnreadThreads,
   getThreadCount,
+} from './queries';
+export {
   updateThreadFlags,
   deleteThread,
   purgeThreadsNotInList,
+} from './mutations';
+export {
   countExistingThreads,
   filterNewProviderThreadIds,
   filterStaleProviderThreadIds,
   searchThreadsWithFilters,
-} from './threads/index';
+} from './search';
