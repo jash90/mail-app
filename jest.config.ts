@@ -11,6 +11,8 @@ const config: Config = {
   },
   setupFiles: ['<rootDir>/tests/setup.ts'],
   testMatch: ['<rootDir>/tests/**/*.test.ts'],
+  // better-sqlite3 is native C++ — never transform it
+  modulePathIgnorePatterns: ['<rootDir>/node_modules/better-sqlite3/'],
   testPathIgnorePatterns: ['/node_modules/'],
   forceExit: true,
 };
