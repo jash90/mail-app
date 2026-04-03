@@ -6,8 +6,8 @@ import {
   type QueryKey,
 } from '@tanstack/react-query';
 import type { ComposeEmailData } from '@/types';
-import type { SearchParams, SearchResult } from '@/features/search/types';
-import { hybridSearch } from '@/features/search/hybridSearch';
+import type { SearchParams, SearchResult } from '@/features/search';
+import { hybridSearch } from '@/features/search';
 import { gmailKeys } from './queryKeys';
 import { getThread } from './threads';
 import { getThreadMessages } from './messages';
@@ -27,7 +27,7 @@ import { getThreadsPaginated } from '@/db/repositories/threads';
 import { getSyncState, upsertSyncState } from '@/db/repositories/syncState';
 import { getContactImportanceMap } from '@/db/repositories/stats';
 import { rebuildFTSIndex } from '@/db/repositories/search';
-import { resetFTSVerification } from '@/features/search/hybridSearch';
+import { resetFTSVerification } from '@/features/search';
 
 const THIRTY_MINUTES = 30 * 60 * 1000;
 const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;

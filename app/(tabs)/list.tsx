@@ -1,5 +1,5 @@
 import EmailComponent from '@/components/EmailComponent';
-import SearchModal from '@/components/SearchModal';
+import SearchModal from '@/components/search';
 import { ListSkeleton } from '@/components/skeletons';
 import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 import { prefetchSummaries } from '@/features/ai/api';

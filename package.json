@@ -11,6 +11,8 @@
     "lint": "expo lint",
     "format": "prettier --write \"app/**/*.{ts,tsx}\" \"components/**/*.{ts,tsx}\" \"features/**/*.{ts,tsx}\" \"db/**/*.{ts,tsx}\" \"lib/**/*.{ts,tsx}\" \"config/**/*.{ts,tsx}\" \"store/**/*.{ts,tsx}\"",
     "format:check": "prettier --check \"app/**/*.{ts,tsx}\" \"components/**/*.{ts,tsx}\" \"features/**/*.{ts,tsx}\" \"db/**/*.{ts,tsx}\" \"lib/**/*.{ts,tsx}\" \"config/**/*.{ts,tsx}\" \"store/**/*.{ts,tsx}\"",
+    "typecheck": "tsc --noEmit",
+    "check": "bun run lint && bun run typecheck",
     "postinstall": "node scripts/download-sherpa-xcframeworks.js"
   },
   "dependencies": {

@@ -2,7 +2,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { performIncrementalSync, performFullSync, syncNextPage } from './sync';
 import { getSyncState, upsertSyncState } from '@/db/repositories/syncState';
 import { rebuildFTSIndex } from '@/db/repositories/search';
-import { resetFTSVerification } from '@/features/search/hybridSearch';
+import { resetFTSVerification } from '@/features/search';
 import { queryClient } from '@/lib/queryClient';
 import { gmailKeys } from './queryKeys';
 
