@@ -1,5 +1,6 @@
 import { GOOGLE_AUTH } from '@/config/constants';
 import { Sentry } from '@/lib/sentry';
+import { AuthError } from '@/lib/errors';
 import { GoogleUser } from '@/store/authStore';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as SecureStore from 'expo-secure-store';
@@ -106,8 +107,9 @@ export async function refreshGmailTokens(): Promise<{
 
     return { access_token: accessToken, expiry_time: expiryTime };
   } catch (e) {
-    Sentry.captureException(e);
-    console.error('[refreshGmailTokens] Token refresh failed:', e);
+    const authErr = new AuthError('REFRESH_FAILED', 'Token refresh failed', e);
+    Sentry.captureException(authErr);
+    console.error('[refreshGmailTokens]', authErr.message);
     return null;
   }
 }

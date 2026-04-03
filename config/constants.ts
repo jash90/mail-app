@@ -11,7 +11,23 @@ export const GMAIL_API = {
 };
 
 export const AI = {
-  model: 'glm-4.7-flashx',
+  /** Active cloud backend: 'zai' | 'openrouter' (set via EXPO_PUBLIC_AI_BACKEND) */
+  backend: (process.env.EXPO_PUBLIC_AI_BACKEND ?? 'zai') as
+    | 'zai'
+    | 'openrouter',
+
+  zai: {
+    model: process.env.EXPO_PUBLIC_ZAI_MODEL ?? 'glm-4-flashx',
+    baseUrl: 'https://api.z.ai/api/coding/paas/v4',
+  },
+
+  openrouter: {
+    model:
+      process.env.EXPO_PUBLIC_OPENROUTER_MODEL ??
+      'google/gemini-2.0-flash-001',
+    baseUrl: 'https://openrouter.ai/api/v1',
+  },
+
   temperature: 0.7,
   timeoutMs: 300_000,
 };
