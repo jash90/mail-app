@@ -1,0 +1,29 @@
+appId: com.jash.mail-app
+name: "Stats Screen Flow"
+tags:
+  - stats
+---
+- launchApp
+
+- extendedWaitUntil:
+    visible: "AI Mail"
+    timeout: 20000
+
+# Tap Stats tab — 2nd of 4 icons in tab bar
+- tapOn:
+    point: "37%,98%"
+
+- extendedWaitUntil:
+    visible: "Statistics"
+    timeout: 15000
+
+- takeScreenshot: stats-loaded
+
+- assertVisible: "Sent"
+- assertVisible: "Received"
+
+- swipe:
+    direction: UP
+    duration: 500
+
+- takeScreenshot: stats-scrolled

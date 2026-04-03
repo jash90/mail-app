@@ -1,0 +1,30 @@
+appId: com.jash.mail-app
+name: "Thread Detail Flow"
+tags:
+  - critical
+  - thread
+---
+- launchApp
+
+- extendedWaitUntil:
+    visible: "AI Mail"
+    timeout: 20000
+
+# Tap first email thread (below header, roughly at 20% from top)
+- tapOn:
+    point: "50%,20%"
+
+- waitForAnimationToEnd
+
+- takeScreenshot: thread-detail
+
+# Swipe right to go back (iOS gesture)
+- swipe:
+    start: "5%,50%"
+    end: "80%,50%"
+
+- extendedWaitUntil:
+    visible: "AI Mail"
+    timeout: 5000
+
+- takeScreenshot: back-to-inbox

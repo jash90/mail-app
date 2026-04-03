@@ -1,0 +1,4 @@
+# Redirect `bun test` to Jest to avoid __DEV__ / RN typeof errors
+# with Bun's native test runner. Always use `bun run test` for consistency.
+[test]
+preload = ["./tests/setup-bun.ts"]

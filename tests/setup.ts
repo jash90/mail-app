@@ -1,7 +1,8 @@
 // Pre-define globals that expo's WinterCG runtime tries to lazy-load via require()
 // which triggers jest's "import outside test scope" error
 if (typeof globalThis.structuredClone === 'undefined') {
-  globalThis.structuredClone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
+  globalThis.structuredClone = <T>(value: T): T =>
+    JSON.parse(JSON.stringify(value));
 }
 
 // @ts-expect-error -- expo's import.meta registry polyfill
@@ -29,6 +30,9 @@ jest.mock('react-native-reanimated', () => ({
 jest.mock('@/lib/sentry', () => ({
   Sentry: {
     captureException: jest.fn(),
+    captureMessage: jest.fn(),
+    addBreadcrumb: jest.fn(),
+    startSpan: jest.fn((_opts: unknown, fn: () => unknown) => fn()),
     wrap: jest.fn((c: unknown) => c),
     ErrorBoundary: jest.fn(({ children }: { children: unknown }) => children),
   },

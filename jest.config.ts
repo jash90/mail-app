@@ -15,6 +15,23 @@ const config: Config = {
   modulePathIgnorePatterns: ['<rootDir>/node_modules/better-sqlite3/'],
   testPathIgnorePatterns: ['/node_modules/'],
   forceExit: true,
+  collectCoverageFrom: [
+    'features/**/*.ts',
+    'db/**/*.ts',
+    'lib/**/*.ts',
+    'store/**/*.ts',
+    '!**/*.d.ts',
+    '!**/index.ts',
+  ],
+  coverageDirectory: 'coverage',
+  coverageThreshold: {
+    global: {
+      branches: 40,
+      functions: 40,
+      lines: 50,
+      statements: 50,
+    },
+  },
 };
 
 export default config;

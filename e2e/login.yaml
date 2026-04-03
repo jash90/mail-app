@@ -1,0 +1,14 @@
+appId: com.jash.mail-app
+name: "Login Flow"
+tags:
+  - critical
+  - auth
+---
+- launchApp
+
+# App may show login or inbox depending on auth state
+- extendedWaitUntil:
+    visible: "AI Mail|Continue with Gmail"
+    timeout: 20000
+
+- takeScreenshot: login-or-inbox
