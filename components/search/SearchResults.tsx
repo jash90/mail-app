@@ -35,7 +35,7 @@ export default function SearchResults({
 
   if (isLoading) {
     return (
-      <View className="items-center justify-center py-8">
+      <View className="items-center py-8">
         <ActivityIndicator color="white" />
         <Text className="mt-2 text-xs text-gray-500">
           {useGmailApi ? 'Searching Gmail...' : 'AI analyzing results...'}
@@ -46,7 +46,7 @@ export default function SearchResults({
 
   if (hasQuery && results.length === 0) {
     return (
-      <View className="items-center justify-center py-8">
+      <View className="items-center py-8">
         <Text className="text-gray-500">No results</Text>
       </View>
     );
@@ -54,24 +54,27 @@ export default function SearchResults({
 
   if (hasQuery) {
     return (
-      <>
-        <Text className="mb-2 text-xs text-gray-500">
-          {results.length} {results.length === 1 ? 'result' : 'results'}
-          {!useGmailApi ? ' • AI ✨' : ''}
-          {useGmailApi ? ' • ☁️ Gmail' : ''}
-        </Text>
+      <View className="flex-1">
         <FlashList
           data={results}
           keyExtractor={(item: SearchResult) => item.thread.id}
           renderItem={renderItem}
+          estimatedItemSize={80}
           keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={
+            <Text className="mb-2 text-xs text-gray-500">
+              {results.length} {results.length === 1 ? 'result' : 'results'}
+              {!useGmailApi ? ' • AI ✨' : ''}
+              {useGmailApi ? ' • ☁️ Gmail' : ''}
+            </Text>
+          }
         />
-      </>
+      </View>
     );
   }
 
   return (
-    <View className="items-center justify-center py-8">
+    <View className="items-center py-8">
       <Text className="text-sm text-gray-600">Type to search</Text>
     </View>
   );

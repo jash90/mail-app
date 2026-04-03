@@ -10,7 +10,7 @@ export const TIME_RANGES = [
 
 export const QUICK_FILTERS = [
   { key: 'isUnread' as const, label: 'Unread' },
-  { key: 'isStarred' as const, label: '⭐ Starred' },
+  { key: 'isStarred' as const, label: 'Starred', icon: 'star' as const },
   { key: 'isNewsletter' as const, label: 'Newsletter' },
   { key: 'isAutoReply' as const, label: 'Auto-reply' },
 ];

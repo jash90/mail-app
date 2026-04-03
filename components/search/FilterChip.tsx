@@ -1,9 +1,11 @@
-import { Pressable, Text } from 'react-native';
+import Icon from '@expo/vector-icons/SimpleLineIcons';
+import { Pressable, Text, View } from 'react-native';
 
 interface FilterChipProps {
   label: string;
   active: boolean;
   onPress: () => void;
+  icon?: string;
 }
 
 /** Reusable filter chip (checkbox/radio style) */
@@ -11,6 +13,7 @@ export default function FilterChip({
   label,
   active,
   onPress,
+  icon,
 }: FilterChipProps) {
   return (
     <Pressable
@@ -19,13 +22,22 @@ export default function FilterChip({
         active ? 'bg-white' : 'bg-white/10'
       }`}
     >
-      <Text
-        className={`text-xs font-medium ${
-          active ? 'text-black' : 'text-gray-300'
-        }`}
-      >
-        {label}
-      </Text>
+      <View className="flex-row items-center gap-1.5">
+        {icon && (
+          <Icon
+            name={icon as any}
+            size={12}
+            color={active ? '#000' : '#d1d5db'}
+          />
+        )}
+        <Text
+          className={`text-xs font-medium ${
+            active ? 'text-black' : 'text-gray-300'
+          }`}
+        >
+          {label}
+        </Text>
+      </View>
     </Pressable>
   );
 }
