@@ -1,5 +1,6 @@
 import { prefetchSummaries } from '@/features/ai/api';
 import { useContactImportance } from './useSearchHooks';
+import { useLabels } from './useLabelsHook';
 import { useThreads } from './useThreadQueries';
 import { useTrashThread } from './useThreadMutations';
 import { triggerManualSync } from '@/features/gmail/syncManager';
@@ -14,10 +15,14 @@ import { Alert } from 'react-native';
 export function useInboxScreen() {
   const router = useRouter();
   const [searchVisible, setSearchVisible] = useState(false);
+  const [folderPickerVisible, setFolderPickerVisible] = useState(false);
+  const [selectedLabel, setSelectedLabel] = useState('INBOX');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const user = useAuthStore((s) => s.user);
   const accountId = user?.id ?? '';
   const userEmail = user?.email ?? '';
+
+  const { data: labels } = useLabels(accountId);
 
   const {
     data,
@@ -27,7 +32,7 @@ export function useInboxScreen() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useThreads(accountId, ['INBOX']);
+  } = useThreads(accountId, [selectedLabel]);
 
   const threads = useMemo(
     () => data?.pages.flatMap((page) => page) ?? [],
@@ -123,6 +128,11 @@ export function useInboxScreen() {
     isRefreshing,
     isFetchingNextPage,
     importanceMap,
+    labels,
+    selectedLabel,
+    setSelectedLabel,
+    folderPickerVisible,
+    setFolderPickerVisible,
     tts,
     searchVisible,
     setSearchVisible,

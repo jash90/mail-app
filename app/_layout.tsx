@@ -22,6 +22,8 @@ import 'react-native-reanimated';
 
 initSentry();
 
+export { default as ErrorBoundary } from '@/components/ErrorScreen';
+
 const centeredContainerStyle = {
   flex: 1,
   justifyContent: 'center' as const,
@@ -102,7 +104,6 @@ function RootLayout() {
                 name="thread/[id]"
                 options={{ headerShown: false }}
               />
-              <Stack.Screen name="summary" options={{ headerShown: false }} />
             </Stack.Protected>
           </Stack>
         </QueryClientProvider>

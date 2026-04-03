@@ -8,7 +8,6 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { TTSService } from '@/features/tts';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
-import { useRouter } from 'expo-router';
 import { memo, useCallback } from 'react';
 import {
   ActivityIndicator,
@@ -68,7 +67,6 @@ const SummaryItemRow = memo(function SummaryItemRow({
 });
 
 export default function SummaryScreen() {
-  const router = useRouter();
   const accountId = useAuthStore((s) => s.user?.id) ?? '';
   const { items, processed, total, retrySummary, clearAll } =
     useSummaryPipeline(accountId);
@@ -83,9 +81,6 @@ export default function SummaryScreen() {
   return (
     <StyledSafeAreaView className="flex-1 bg-black" edges={['top']}>
       <View className="flex-row items-center gap-4 p-4">
-        <Pressable onPress={() => router.back()}>
-          <Icon name="arrow-left" size={20} color="white" />
-        </Pressable>
         <Text className="flex-1 text-2xl font-bold text-white">AI Summary</Text>
         {__DEV__ && (
           <Pressable

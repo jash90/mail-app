@@ -1,6 +1,8 @@
 import Icon from '@expo/vector-icons/SimpleLineIcons';
 import { Tabs } from 'expo-router';
 
+export { default as ErrorBoundary } from '@/components/ErrorScreen';
+
 export default function TabLayout() {
   return (
     <Tabs
@@ -23,7 +25,16 @@ export default function TabLayout() {
         options={{
           title: 'Inbox',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="envelope" size={size} color={color} />
+            <Icon name="folder" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="summary"
+        options={{
+          title: 'Summary',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="magic-wand" size={size} color={color} />
           ),
         }}
       />
