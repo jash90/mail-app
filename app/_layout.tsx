@@ -1,11 +1,7 @@
-import { Buffer } from 'buffer';
-global.Buffer = global.Buffer || Buffer;
-
+import '@/lib/polyfills';
 import '../global.css';
 
 import { initSentry, Sentry, navigationIntegration } from '@/lib/sentry';
-initSentry();
-
 import { useAuthStore } from '@/store/authStore';
 import { initializeTokens } from '@/features/auth/oauthService';
 import {
@@ -23,6 +19,8 @@ import { Stack, useNavigationContainerRef } from 'expo-router';
 import { useEffect } from 'react';
 import { Text, View } from 'react-native';
 import 'react-native-reanimated';
+
+initSentry();
 
 const centeredContainerStyle = {
   flex: 1,

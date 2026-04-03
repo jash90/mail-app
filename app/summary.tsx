@@ -1,14 +1,15 @@
 import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 import { db } from '@/db/client';
-import { getUnreadThreads } from '@/db/repositories/threads';
 import { summaryCache } from '@/db/schema';
-import { getSummaryCache, summarizeEmail } from '@/features/ai/api';
+import {
+  useSummaryPipeline,
+  type SummaryItem,
+} from '@/features/ai/hooks/useSummaryPipeline';
 import { useAuthStore } from '@/store/authStore';
-import type { EmailThread } from '@/types';
 import { TTSService } from '@/features/tts';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
 import { useRouter } from 'expo-router';
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -18,13 +19,6 @@ import {
 } from 'react-native';
 
 const listContentStyle = { paddingHorizontal: 16, paddingBottom: 32 } as const;
-
-interface SummaryItem {
-  thread: EmailThread;
-  summary: string | null;
-  loading: boolean;
-  error: string | null;
-}
 
 const SummaryItemRow = memo(function SummaryItemRow({
   item,
@@ -76,120 +70,8 @@ const SummaryItemRow = memo(function SummaryItemRow({
 export default function SummaryScreen() {
   const router = useRouter();
   const accountId = useAuthStore((s) => s.user?.id) ?? '';
-  const [items, setItems] = useState<SummaryItem[]>([]);
-  const [processed, setProcessed] = useState(0);
-  const cancelledRef = useRef(false);
-  const retryAbortMapRef = useRef(new Map<number, AbortController>());
-
-  useEffect(() => {
-    if (!accountId) return;
-    cancelledRef.current = false;
-    const abortController = new AbortController();
-    const threads = getUnreadThreads(accountId, 20);
-
-    if (threads.length === 0) {
-      setItems([]);
-      return;
-    }
-
-    const initialItems = threads.map((thread) => {
-      const cached = getSummaryCache(thread.id);
-      return {
-        thread,
-        summary: cached,
-        loading: !cached,
-        error: null,
-      };
-    });
-
-    const cachedCount = initialItems.filter((item) => item.summary).length;
-    setItems(initialItems);
-    setProcessed(cachedCount);
-
-    (async () => {
-      for (let i = 0; i < threads.length; i++) {
-        if (cancelledRef.current) break;
-        if (initialItems[i].summary) continue;
-
-        const t = threads[i];
-        try {
-          const summary = await summarizeEmail(
-            t.id,
-            t.subject,
-            t.snippet,
-            abortController.signal,
-          );
-          if (cancelledRef.current) break;
-          setItems((prev) => {
-            const updated = [...prev];
-            updated[i] = { ...updated[i], summary, loading: false };
-            return updated;
-          });
-          setProcessed((prev) => prev + 1);
-        } catch (err) {
-          if (cancelledRef.current) break;
-          console.warn(`[SummaryScreen] Failed to summarize thread ${t.id}`);
-          setItems((prev) => {
-            const updated = [...prev];
-            updated[i] = {
-              ...updated[i],
-              loading: false,
-              error: err instanceof Error ? err.message : 'Unknown error',
-            };
-            return updated;
-          });
-        }
-      }
-    })();
-
-    const retryAbortMap = retryAbortMapRef.current;
-    return () => {
-      cancelledRef.current = true;
-      abortController.abort();
-      for (const ctrl of retryAbortMap.values()) ctrl.abort();
-      retryAbortMap.clear();
-    };
-  }, [accountId]);
-
-  const retrySummary = useCallback(async (index: number, item: SummaryItem) => {
-    setItems((prev) => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], loading: true, error: null };
-      return updated;
-    });
-
-    const abort = new AbortController();
-    retryAbortMapRef.current.set(index, abort);
-
-    try {
-      const summary = await summarizeEmail(
-        item.thread.id,
-        item.thread.subject,
-        item.thread.snippet,
-        abort.signal,
-      );
-      if (abort.signal.aborted) return;
-      setItems((prev) => {
-        const updated = [...prev];
-        updated[index] = { ...updated[index], summary, loading: false };
-        return updated;
-      });
-    } catch (err) {
-      if (abort.signal.aborted) return;
-      console.warn(`[SummaryScreen] Retry failed for thread ${item.thread.id}`);
-      setItems((prev) => {
-        const updated = [...prev];
-        updated[index] = {
-          ...updated[index],
-          loading: false,
-          error: err instanceof Error ? err.message : 'Unknown error',
-        };
-        return updated;
-      });
-    } finally {
-      retryAbortMapRef.current.delete(index);
-    }
-  }, []);
+  const { items, processed, total, retrySummary, clearAll } =
+    useSummaryPipeline(accountId);
 
   const renderItem = useCallback(
     ({ item, index }: { item: SummaryItem; index: number }) => (
@@ -197,8 +79,6 @@ export default function SummaryScreen() {
     ),
     [retrySummary],
   );
-
-  const total = items.length;
 
   return (
     <StyledSafeAreaView className="flex-1 bg-black" edges={['top']}>
@@ -212,8 +92,7 @@ export default function SummaryScreen() {
             onPress={() => {
               db.delete(summaryCache).run();
               TTSService.shared().clearCache();
-              setItems([]);
-              setProcessed(0);
+              clearAll();
               console.log('[DEV] Summary + TTS audio cache cleared');
             }}
           >
