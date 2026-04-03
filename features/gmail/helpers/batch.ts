@@ -19,7 +19,7 @@ export const parseMultipartResponseWithStatus = (
 
     // Extract Content-ID from the outer MIME headers (before the blank line separating headers from body)
     const contentIdMatch = part.match(
-      /Content-ID:\s*<?\s*response-(.*?)\s*>?/i,
+      /Content-ID:\s*<?\s*response-(.*?)\s*>/i,
     );
     const contentId = contentIdMatch ? contentIdMatch[1].trim() : null;
 
