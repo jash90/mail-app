@@ -45,23 +45,28 @@ export function getThreadsPaginated(
   const threadColumns = getThreadColumns();
 
   const hasLabels = labelIds && labelIds.length > 0;
+  const isTrashView = hasLabels && labelIds.includes('TRASH');
+  const isSpamView = hasLabels && labelIds.includes('SPAM');
+  const skipStatusFilter = isTrashView || isSpamView;
+
   const threadRows = hasLabels
     ? (() => {
         const results: (typeof threads.$inferSelect)[] = [];
         for (const batch of chunk(labelIds, CHUNK_SIZE)) {
+          const conditions = [
+            eq(threads.accountId, accountId),
+            inArray(threadLabels.labelId, batch),
+          ];
+          if (!skipStatusFilter) {
+            conditions.push(eq(threads.isTrashed, false));
+            conditions.push(eq(threads.isArchived, false));
+          }
           results.push(
             ...db
               .selectDistinct(threadColumns)
               .from(threads)
               .innerJoin(threadLabels, eq(threads.id, threadLabels.threadId))
-              .where(
-                and(
-                  eq(threads.accountId, accountId),
-                  eq(threads.isTrashed, false),
-                  eq(threads.isArchived, false),
-                  inArray(threadLabels.labelId, batch),
-                ),
-              )
+              .where(and(...conditions))
               .all(),
           );
         }

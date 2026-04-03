@@ -110,11 +110,19 @@ export const trashThread = async (threadId: string) => {
   return ok;
 };
 
-export const untrashThread = (threadId: string) => {
+export const untrashThread = async (threadId: string) => {
   const providerId = toProviderId(threadId);
-  return safeModify(`Failed to untrash thread ${threadId}`, () =>
+  const ok = await safeModify(`Failed to untrash thread ${threadId}`, () =>
     gmailRequest(`/threads/${providerId}/untrash`, { method: 'POST' }),
   );
+  if (ok) {
+    try {
+      updateThreadFlags(threadId, { is_trashed: false });
+    } catch {
+      /* */
+    }
+  }
+  return ok;
 };
 
 export const deleteThread = (threadId: string) => {
