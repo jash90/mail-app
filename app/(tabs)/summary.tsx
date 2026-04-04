@@ -3,6 +3,7 @@ import { db } from '@/db/client';
 import { summaryCache } from '@/db/schema';
 import {
   useSummaryPipeline,
+  type PipelinePhase,
   type SummaryItem,
 } from '@/features/ai/hooks/useSummaryPipeline';
 import { useAuthStore } from '@/store/authStore';
@@ -18,6 +19,51 @@ import {
 } from 'react-native';
 
 const listContentStyle = { paddingHorizontal: 16, paddingBottom: 32 } as const;
+
+/* ── Phase status banner ─────────────────────────────── */
+
+const PHASE_CONFIG: Record<
+  PipelinePhase,
+  { icon: string; color: string } | null
+> = {
+  idle: null,
+  checking: { icon: 'globe', color: '#818cf8' },
+  syncing: { icon: 'cloud-download', color: '#818cf8' },
+  selecting: { icon: 'list', color: '#818cf8' },
+  summarizing: { icon: 'magic-wand', color: '#818cf8' },
+  done: null,
+  error: { icon: 'exclamation', color: '#f87171' },
+};
+
+function PhaseBanner({
+  phase,
+  detail,
+}: {
+  phase: PipelinePhase;
+  detail: string;
+}) {
+  const cfg = PHASE_CONFIG[phase];
+  if (!cfg || !detail) return null;
+
+  return (
+    <View className="mx-4 mb-3 flex-row items-center gap-3 rounded-xl bg-zinc-900 px-4 py-3">
+      {phase === 'error' ? (
+        <Icon name={cfg.icon as any} size={16} color={cfg.color} />
+      ) : (
+        <ActivityIndicator size="small" color={cfg.color} />
+      )}
+      <Text
+        className="flex-1 text-sm"
+        style={{ color: cfg.color }}
+        numberOfLines={2}
+      >
+        {detail}
+      </Text>
+    </View>
+  );
+}
+
+/* ── Summary row ─────────────────────────────────────── */
 
 const SummaryItemRow = memo(function SummaryItemRow({
   item,
@@ -66,11 +112,13 @@ const SummaryItemRow = memo(function SummaryItemRow({
   );
 });
 
+/* ── Screen ──────────────────────────────────────────── */
+
 export default function SummaryScreen() {
   const user = useAuthStore((s) => s.user);
   const accountId = user?.id ?? '';
   const userEmail = user?.email ?? '';
-  const { items, processed, total, retrySummary, clearAll } =
+  const { items, total, phase, phaseDetail, retrySummary, clearAll } =
     useSummaryPipeline(accountId, userEmail);
 
   const renderItem = useCallback(
@@ -79,6 +127,9 @@ export default function SummaryScreen() {
     ),
     [retrySummary],
   );
+
+  const isLoading =
+    phase === 'checking' || phase === 'syncing' || phase === 'selecting';
 
   return (
     <StyledSafeAreaView className="flex-1 bg-black" edges={['top']}>
@@ -98,17 +149,43 @@ export default function SummaryScreen() {
         )}
       </View>
 
-      {total === 0 ? (
-        <View className="flex-1 items-center justify-center">
-          <Text className="text-lg text-zinc-400">No unread emails</Text>
+      <PhaseBanner phase={phase} detail={phaseDetail} />
+
+      {isLoading ? (
+        <View className="flex-1 items-center justify-center gap-4">
+          <ActivityIndicator size="large" color="#818cf8" />
+          <Text className="text-base text-zinc-400">{phaseDetail}</Text>
+        </View>
+      ) : total === 0 && phase === 'done' ? (
+        <View className="flex-1 items-center justify-center gap-2">
+          <Icon name="check" size={32} color="#4ade80" />
+          <Text className="text-lg text-zinc-400">
+            No unread emails to summarize
+          </Text>
+          <Text className="px-8 text-center text-sm text-zinc-600">
+            Unread inbox emails will appear here with AI summaries
+          </Text>
+        </View>
+      ) : total === 0 && phase === 'error' ? (
+        <View className="flex-1 items-center justify-center gap-2">
+          <Icon name="exclamation" size={32} color="#f87171" />
+          <Text className="text-lg text-zinc-400">Failed to load</Text>
+          <Text className="px-8 text-center text-sm text-zinc-600">
+            {phaseDetail}
+          </Text>
         </View>
       ) : (
         <>
-          <Text className="px-4 pb-2 text-sm text-zinc-400">
-            {processed < total
-              ? `Summarizing ${processed + 1} of ${total}...`
-              : `All ${total} emails summarized`}
-          </Text>
+          {phase === 'summarizing' && (
+            <Text className="px-4 pb-2 text-sm text-zinc-400">
+              {phaseDetail}
+            </Text>
+          )}
+          {phase === 'done' && (
+            <Text className="px-4 pb-2 text-sm text-zinc-400">
+              All {total} email{total !== 1 ? 's' : ''} summarized
+            </Text>
+          )}
 
           <FlatList
             data={items}

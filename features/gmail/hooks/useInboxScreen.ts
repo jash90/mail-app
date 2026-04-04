@@ -88,15 +88,17 @@ export function useInboxScreen() {
         await triggerManualSync();
       }
       await refetch();
-      prefetchAbortRef.current?.abort();
-      const controller = new AbortController();
-      prefetchAbortRef.current = controller;
-      prefetchSummaries(accountId, controller.signal, userEmail).catch(
-        (err) => {
-          if (err instanceof Error && err.name === 'AbortError') return;
-          console.warn('[InboxScreen] prefetchSummaries failed:', err);
-        },
-      );
+      if (selectedLabel === 'INBOX') {
+        prefetchAbortRef.current?.abort();
+        const controller = new AbortController();
+        prefetchAbortRef.current = controller;
+        prefetchSummaries(accountId, controller.signal, userEmail).catch(
+          (err) => {
+            if (err instanceof Error && err.name === 'AbortError') return;
+            console.warn('[InboxScreen] prefetchSummaries failed:', err);
+          },
+        );
+      }
     } catch (err) {
       console.error('[InboxScreen] Refresh failed:', err);
     } finally {
