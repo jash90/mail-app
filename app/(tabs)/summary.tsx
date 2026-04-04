@@ -1,15 +1,15 @@
 import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
+import { PhaseBanner, SummaryItemRow } from '@/components/summary';
 import { db } from '@/db/client';
 import { summaryCache } from '@/db/schema';
 import {
   useSummaryPipeline,
-  type PipelinePhase,
   type SummaryItem,
 } from '@/features/ai/hooks/useSummaryPipeline';
 import { useAuthStore } from '@/store/authStore';
 import { TTSService } from '@/features/tts';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
-import { memo, useCallback } from 'react';
+import { useCallback } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -19,100 +19,6 @@ import {
 } from 'react-native';
 
 const listContentStyle = { paddingHorizontal: 16, paddingBottom: 32 } as const;
-
-/* ── Phase status banner ─────────────────────────────── */
-
-const PHASE_CONFIG: Record<
-  PipelinePhase,
-  { icon: string; color: string } | null
-> = {
-  idle: null,
-  checking: { icon: 'globe', color: '#818cf8' },
-  syncing: { icon: 'cloud-download', color: '#818cf8' },
-  selecting: { icon: 'list', color: '#818cf8' },
-  summarizing: { icon: 'magic-wand', color: '#818cf8' },
-  done: null,
-  error: { icon: 'exclamation', color: '#f87171' },
-};
-
-function PhaseBanner({
-  phase,
-  detail,
-}: {
-  phase: PipelinePhase;
-  detail: string;
-}) {
-  const cfg = PHASE_CONFIG[phase];
-  if (!cfg || !detail) return null;
-
-  return (
-    <View className="mx-4 mb-3 flex-row items-center gap-3 rounded-xl bg-zinc-900 px-4 py-3">
-      {phase === 'error' ? (
-        <Icon name={cfg.icon as any} size={16} color={cfg.color} />
-      ) : (
-        <ActivityIndicator size="small" color={cfg.color} />
-      )}
-      <Text
-        className="flex-1 text-sm"
-        style={{ color: cfg.color }}
-        numberOfLines={2}
-      >
-        {detail}
-      </Text>
-    </View>
-  );
-}
-
-/* ── Summary row ─────────────────────────────────────── */
-
-const SummaryItemRow = memo(function SummaryItemRow({
-  item,
-  index,
-  onRetry,
-}: {
-  item: SummaryItem;
-  index: number;
-  onRetry: (index: number, item: SummaryItem) => void;
-}) {
-  return (
-    <View className="mb-3 rounded-xl bg-zinc-900 p-4">
-      <Text className="text-sm font-semibold text-indigo-400" numberOfLines={1}>
-        {item.thread.participants[0]?.name ||
-          item.thread.participants[0]?.email ||
-          'Unknown'}
-      </Text>
-      <Text className="mt-1 text-base font-medium text-white" numberOfLines={2}>
-        {item.thread.subject}
-      </Text>
-
-      {item.loading ? (
-        <ActivityIndicator
-          className="mt-3 self-start"
-          size="small"
-          color="#818cf8"
-        />
-      ) : item.error ? (
-        <View className="mt-2 flex-row items-center gap-3">
-          <Text className="flex-1 text-sm text-red-400">
-            Error: {item.error}
-          </Text>
-          <Pressable
-            onPress={() => onRetry(index, item)}
-            className="rounded-lg bg-indigo-600 px-3 py-1.5"
-          >
-            <Text className="text-xs font-semibold text-white">Retry</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <Text className="mt-2 text-sm leading-5 text-zinc-300">
-          {item.summary}
-        </Text>
-      )}
-    </View>
-  );
-});
-
-/* ── Screen ──────────────────────────────────────────── */
 
 export default function SummaryScreen() {
   const user = useAuthStore((s) => s.user);
