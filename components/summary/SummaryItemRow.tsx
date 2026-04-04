@@ -1,4 +1,5 @@
 import type { SummaryItem } from '@/features/ai/hooks/useSummaryPipeline';
+import { getSenderDisplayName } from '@/lib/participantUtils';
 import { memo, useCallback } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
@@ -18,10 +19,7 @@ export const SummaryItemRow = memo(function SummaryItemRow({
     [onRetry, index, item],
   );
 
-  const sender =
-    item.thread.participants[0]?.name ||
-    item.thread.participants[0]?.email ||
-    'Unknown';
+  const sender = getSenderDisplayName(item.thread.participants);
 
   return (
     <View className="mb-3 rounded-xl bg-zinc-900 p-4">
