@@ -129,7 +129,11 @@ export function getContactImportanceMap(
 
     // Boost: 1-5 emaili od kontaktu → minimum tier 3 (nowy, ale realny kontakt)
     const rc = recvMap.get(email)?.count ?? 0;
+    const sc = sentMap.get(email)?.count ?? 0;
     if (rc >= 1 && rc <= 5 && tier < 3) tier = 3;
+
+    // Penalty: never replied → tier -2
+    if (sc === 0) tier = Math.max(1, tier - 2);
 
     resultMap.set(email, tier);
   }
@@ -270,6 +274,9 @@ export function getContactImportanceDetails(
     else tier = 1;
 
     if (rc >= 1 && rc <= 5 && tier < 3) tier = 3;
+
+    // Penalty: never replied → tier -2
+    if (sc === 0) tier = Math.max(1, tier - 2);
 
     let reason: string;
     if (nlRatio > 0.8) {
