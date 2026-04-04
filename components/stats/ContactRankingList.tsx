@@ -1,3 +1,4 @@
+import { getMaxContactValue } from '@/features/stats/helpers';
 import type { ContactStats } from '@/features/stats/types';
 import React from 'react';
 import { Text, View } from 'react-native';
@@ -15,9 +16,7 @@ export default function ContactRankingList({
 }: Props) {
   if (contacts.length === 0) return null;
 
-  const maxValue = Math.max(
-    ...contacts.map((c) => c[valueKey] ?? c.totalCount),
-  );
+  const maxValue = getMaxContactValue(contacts, valueKey);
 
   return (
     <View className="mt-4">

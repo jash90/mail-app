@@ -6,6 +6,7 @@ import {
   View,
   RefreshControl,
 } from 'react-native';
+import { calculateEmailRatio } from '@/features/stats/helpers';
 import { useAuthStore } from '@/store/authStore';
 import { useEmailStats } from '@/features/stats';
 import StatCard from '@/components/stats/StatCard';
@@ -61,12 +62,10 @@ export default function StatsScreen() {
     );
   }
 
-  const ratio =
-    displayStats.totalSent > 0
-      ? `1:${Math.round(displayStats.totalReceived / displayStats.totalSent)}`
-      : displayStats.totalReceived > 0
-        ? `0:${displayStats.totalReceived}`
-        : '-';
+  const ratio = calculateEmailRatio(
+    displayStats.totalSent,
+    displayStats.totalReceived,
+  );
 
   return (
     <StyledSafeAreaView className="flex-1 bg-black" edges={['top']}>

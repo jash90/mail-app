@@ -1,6 +1,7 @@
+import { getProgressLabel, getProgressValue } from '@/features/stats/helpers';
+import type { StatsProgress } from '@/features/stats/types';
 import React from 'react';
 import { View, Text } from 'react-native';
-import type { StatsProgress } from '@/features/stats/types';
 
 interface Props {
   progress: StatsProgress;
@@ -11,17 +12,12 @@ export default function ProgressOverlay({ progress, visible }: Props) {
   if (!visible) return null;
 
   const { phase, loaded, total } = progress;
-  const isListing = phase === 'listing';
   const isRetrying = phase === 'retrying';
+  const isListing = phase === 'listing';
   const pct = total > 0 ? Math.round((loaded / total) * 100) : 0;
 
-  const label = isListing
-    ? 'Listing threads...'
-    : isRetrying
-      ? 'Retrying failed requests...'
-      : 'Loading messages...';
-
-  const value = isListing ? `${loaded} found` : `${loaded}/${total} (${pct}%)`;
+  const label = getProgressLabel(phase);
+  const value = getProgressValue(phase, loaded, total);
 
   return (
     <View className="mb-3 rounded-lg bg-zinc-900 p-3">
