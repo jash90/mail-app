@@ -1,7 +1,6 @@
 import EmailComponent from '@/components/EmailComponent';
-import FolderPickerModal, {
-  getLabelDisplayName,
-} from '@/components/FolderPickerModal';
+import FolderPickerModal from '@/components/FolderPickerModal';
+import { getLabelDisplayName } from '@/lib/labelUtils';
 import SearchModal from '@/components/search';
 import { ListSkeleton } from '@/components/skeletons';
 import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
