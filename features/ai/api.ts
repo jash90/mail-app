@@ -1,10 +1,7 @@
 import { db } from '@/db/client';
-import { getUnreadThreads } from '@/db/repositories/threads';
-import { getContactImportanceMap } from '@/db/repositories/stats';
+import { selectThreadsForSummary } from '@/db/repositories/threads';
 import { summaryCache } from '@/db/schema';
 import { and, eq, gt, inArray } from 'drizzle-orm';
-
-const MIN_SUMMARY_TIER = 4;
 import { getProvider } from './providers';
 import type { ChatMessage, EmailContext } from './types';
 import { formatContext } from './types';
@@ -92,19 +89,9 @@ export async function prefetchSummaries(
   signal?: AbortSignal,
   userEmail?: string,
 ): Promise<void> {
-  const allThreads = getUnreadThreads(accountId, 50);
+  if (!userEmail) return;
 
-  // Filter to only highest-tier contacts when userEmail is available
-  let threads = allThreads;
-  if (userEmail) {
-    const importanceMap = getContactImportanceMap(accountId, userEmail);
-    threads = allThreads.filter((t) => {
-      const email = t.participants[0]?.email?.toLowerCase() ?? '';
-      const tier = importanceMap.get(email) ?? 1;
-      return tier >= MIN_SUMMARY_TIER;
-    });
-  }
-
+  const threads = selectThreadsForSummary(accountId, userEmail, 20);
   let consecutiveFailures = 0;
 
   for (const t of threads) {
