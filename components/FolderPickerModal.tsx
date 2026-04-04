@@ -1,18 +1,9 @@
-import { getLabelDisplayName } from '@/lib/labelUtils';
+import { getLabelDisplayName, sortLabels } from '@/lib/labelUtils';
 import type { EmailLabel } from '@/types';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
 import { useCallback, useMemo } from 'react';
 import { FlatList, Modal, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-const SYSTEM_LABEL_ORDER = [
-  'INBOX',
-  'STARRED',
-  'SENT',
-  'DRAFT',
-  'SPAM',
-  'TRASH',
-];
 
 const LABEL_ICONS: Record<string, string> = {
   INBOX: 'envelope',
@@ -38,21 +29,7 @@ export default function FolderPickerModal({
   selectedLabel,
   onSelect,
 }: FolderPickerModalProps) {
-  const sortedLabels = useMemo(() => {
-    const ordered = labels
-      .filter((l) => SYSTEM_LABEL_ORDER.includes(l.id))
-      .sort(
-        (a, b) =>
-          SYSTEM_LABEL_ORDER.indexOf(a.id) - SYSTEM_LABEL_ORDER.indexOf(b.id),
-      );
-    const otherSystem = labels
-      .filter((l) => l.type === 'system' && !SYSTEM_LABEL_ORDER.includes(l.id))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    const user = labels
-      .filter((l) => l.type === 'user')
-      .sort((a, b) => a.name.localeCompare(b.name));
-    return [...ordered, ...otherSystem, ...user];
-  }, [labels]);
+  const sortedLabels = useMemo(() => sortLabels(labels), [labels]);
 
   const handleSelect = useCallback(
     (labelId: string) => {
