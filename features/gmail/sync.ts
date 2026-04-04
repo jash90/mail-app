@@ -125,6 +125,35 @@ export const performFullSync = async (
   }
 };
 
+/** Fetch threads for a specific label from Gmail API and store in SQLite. */
+export const syncLabelThreads = async (
+  accountId: string,
+  labelIds: string[],
+): Promise<SyncResult> => {
+  const result: SyncResult = {
+    success: true,
+    synced_threads: 0,
+    synced_messages: 0,
+    errors: [],
+    new_sync_state: {
+      status: 'idle',
+      last_synced_at: new Date().toISOString(),
+    },
+  };
+
+  try {
+    const { threads } = await listThreads(accountId, labelIds);
+    result.synced_threads = threads.length;
+    return result;
+  } catch (error) {
+    return handleSyncError(
+      result,
+      error,
+      `Sync for labels ${labelIds.join(',')} failed`,
+    );
+  }
+};
+
 /** Fetch the next page of threads from Gmail API using the saved nextPageToken. */
 export const syncNextPage = async (accountId: string): Promise<SyncResult> => {
   const state = getSyncState(accountId);

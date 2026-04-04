@@ -9,6 +9,7 @@ export { getLabels, getLabelById } from './labels';
 export { listThreads, getThread, mapGmailThreadToEmailThread } from './threads';
 export { getMessage, getThreadMessages, parseGmailMessage } from './messages';
 export { sendEmail, sendReply } from './send';
+export { syncLabelThreads } from './sync';
 export {
   markAsRead,
   markAsUnread,

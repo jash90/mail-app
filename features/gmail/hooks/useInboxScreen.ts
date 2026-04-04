@@ -4,6 +4,7 @@ import { useLabels } from './useLabelsHook';
 import { useThreads } from './useThreadQueries';
 import { useTrashThread } from './useThreadMutations';
 import { triggerManualSync } from '@/features/gmail/syncManager';
+import { syncLabelThreads } from '@/features/gmail/sync';
 import { useEmailTTSQueue } from '@/features/tts';
 import { analytics } from '@/lib/analytics';
 import { useAuthStore } from '@/store/authStore';
@@ -24,6 +25,8 @@ export function useInboxScreen() {
 
   const { data: labels } = useLabels(accountId);
 
+  const [isSyncingLabel, setIsSyncingLabel] = useState(false);
+
   const {
     data,
     isLoading,
@@ -38,6 +41,29 @@ export function useInboxScreen() {
     () => data?.pages.flatMap((page) => page) ?? [],
     [data],
   );
+
+  // Fetch threads from Gmail API when the user switches labels
+  useEffect(() => {
+    if (!accountId) return;
+    let cancelled = false;
+
+    setIsSyncingLabel(true);
+    syncLabelThreads(accountId, [selectedLabel])
+      .then(() => {
+        if (!cancelled) refetch();
+      })
+      .catch((err) => {
+        if (!cancelled)
+          console.warn('[useInboxScreen] Label sync failed:', err);
+      })
+      .finally(() => {
+        if (!cancelled) setIsSyncingLabel(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accountId, selectedLabel, refetch]);
   const { data: importanceMap } = useContactImportance(accountId, userEmail);
 
   const unreadThreads = useMemo(
@@ -55,7 +81,12 @@ export function useInboxScreen() {
     if (!accountId) return;
     setIsRefreshing(true);
     try {
-      await triggerManualSync();
+      // Always sync the current label from Gmail API
+      await syncLabelThreads(accountId, [selectedLabel]);
+      // Additionally run incremental sync for INBOX (new messages, label changes)
+      if (selectedLabel === 'INBOX') {
+        await triggerManualSync();
+      }
       await refetch();
       prefetchAbortRef.current?.abort();
       const controller = new AbortController();
@@ -71,7 +102,7 @@ export function useInboxScreen() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [refetch, accountId, userEmail]);
+  }, [refetch, accountId, userEmail, selectedLabel]);
 
   const handleEndReached = useCallback(() => {
     if (!accountId) return;
@@ -144,6 +175,7 @@ export function useInboxScreen() {
     handleThread,
     handleDelete,
     handleDeleteById,
+    isSyncingLabel,
     refetch,
   };
 }

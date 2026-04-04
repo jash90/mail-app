@@ -98,9 +98,11 @@ export const listThreads = async (
 ): Promise<{ threads: EmailThread[]; nextPageToken?: string }> => {
   const params = new URLSearchParams({
     maxResults: String(pagination?.limit || 50),
-    ...(labelIds.length && { labelIds: labelIds.join(',') }),
     ...(pagination?.cursor && { pageToken: pagination.cursor }),
   });
+  for (const id of labelIds) {
+    params.append('labelIds', id);
+  }
 
   const response = await gmailRequest<{
     threads?: Array<{ id: string; snippet: string; historyId: string }>;

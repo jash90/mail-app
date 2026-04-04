@@ -1,5 +1,7 @@
 import EmailComponent from '@/components/EmailComponent';
-import FolderPickerModal, { getLabelDisplayName } from '@/components/FolderPickerModal';
+import FolderPickerModal, {
+  getLabelDisplayName,
+} from '@/components/FolderPickerModal';
 import SearchModal from '@/components/search';
 import { ListSkeleton } from '@/components/skeletons';
 import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
@@ -26,6 +28,7 @@ export default function ListScreen() {
     isError,
     isRefreshing,
     isFetchingNextPage,
+    isSyncingLabel,
     importanceMap,
     labels,
     selectedLabel,
@@ -115,7 +118,7 @@ export default function ListScreen() {
         prev={tts.prev}
       />
 
-      {isLoading ? (
+      {isLoading || (isSyncingLabel && threads.length === 0) ? (
         <ListSkeleton />
       ) : (
         <FlashList
