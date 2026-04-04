@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import Icon from '@expo/vector-icons/SimpleLineIcons';
 import type { QuickFilters } from '@/features/search';
 import type { EmailLabel } from '@/types';
+import Icon from '@expo/vector-icons/SimpleLineIcons';
+import { useMemo } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import FilterChip from './FilterChip';
+import { buildActiveFilterSummary } from './filterHelpers';
 import {
   QUICK_FILTERS,
   TIME_RANGES,
@@ -33,24 +34,10 @@ export default function SearchFilters({
   onSetTimeRange,
   onToggleLabel,
 }: SearchFiltersProps) {
-  // Build active filter summary chips (shown when collapsed)
-  const activeFilterSummary = useMemo(() => {
-    const active: string[] = [];
-    for (const f of QUICK_FILTERS) {
-      if (filters[f.key]) active.push(f.label);
-    }
-    if (filters.timeRange) {
-      const t = TIME_RANGES.find((r) => r.key === filters.timeRange);
-      if (t) active.push(t.label);
-    }
-    if (filters.labelIds?.length) {
-      const names = filters.labelIds
-        .map((id) => labelList?.find((l) => l.id === id)?.name)
-        .filter(Boolean);
-      active.push(...(names as string[]));
-    }
-    return active;
-  }, [filters, labelList]);
+  const activeFilterSummary = useMemo(
+    () => buildActiveFilterSummary(filters, labelList),
+    [filters, labelList],
+  );
 
   return (
     <View>
