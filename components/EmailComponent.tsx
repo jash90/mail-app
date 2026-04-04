@@ -1,3 +1,4 @@
+import Icon from '@expo/vector-icons/SimpleLineIcons';
 import { memo } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
@@ -16,6 +17,8 @@ type EmailItemProps = {
   };
   onPress?: (id: string) => void;
   onLongPress?: (id: string) => void;
+  isSelected?: boolean;
+  isSelectionMode?: boolean;
 };
 
 const TIER_STYLES = {
@@ -30,7 +33,14 @@ const TIER_STYLES = {
   1: { name: 'text-sm', subject: 'text-xs', snippet: 'text-xs text-gray-500' },
 } as const;
 
-const EmailComponent = ({ id, item, onPress, onLongPress }: EmailItemProps) => {
+const EmailComponent = ({
+  id,
+  item,
+  onPress,
+  onLongPress,
+  isSelected,
+  isSelectionMode,
+}: EmailItemProps) => {
   const tier = Math.max(
     1,
     Math.min(5, item.importance),
@@ -40,43 +50,58 @@ const EmailComponent = ({ id, item, onPress, onLongPress }: EmailItemProps) => {
 
   return (
     <Pressable
-      className="w-full border-b border-gray-700 px-1 py-3"
+      className={`w-full border-b border-gray-700 px-1 py-3 ${isSelected ? 'bg-indigo-500/10' : ''}`}
       onPress={() => onPress?.(id)}
       onLongPress={() => onLongPress?.(id)}
     >
-      <View className="flex-row items-center justify-between">
-        <View className="flex-1 flex-row items-center gap-1.5">
-          <Text
-            className={`shrink text-white ${styles.name} ${weight}`}
-            numberOfLines={1}
+      <View className="flex-row items-center gap-2">
+        {isSelectionMode && (
+          <View
+            className={`h-6 w-6 items-center justify-center rounded-full border-2 ${isSelected ? 'border-indigo-500 bg-indigo-500' : 'border-gray-500'}`}
           >
-            {item.name}
+            {isSelected && <Icon name="check" size={12} color="white" />}
+          </View>
+        )}
+        <View className="flex-1">
+          <View className="flex-row items-center justify-between">
+            <View className="flex-1 flex-row items-center gap-1.5">
+              <Text
+                className={`shrink text-white ${styles.name} ${weight}`}
+                numberOfLines={1}
+              >
+                {item.name}
+              </Text>
+              {item.isNewsletter && (
+                <View className="rounded bg-indigo-900/60 px-1.5 py-0.5">
+                  <Text className="text-[9px] font-semibold text-indigo-300">
+                    NL
+                  </Text>
+                </View>
+              )}
+              {item.isAutoReply && (
+                <View className="rounded bg-amber-900/60 px-1.5 py-0.5">
+                  <Text className="text-[9px] font-semibold text-amber-300">
+                    Auto
+                  </Text>
+                </View>
+              )}
+            </View>
+            <Text className="text-right text-xs font-light text-gray-300">
+              {item.sentAt}
+            </Text>
+          </View>
+          <Text className={`text-gray-300 ${styles.subject} ${weight}`}>
+            {item.subject}
           </Text>
-          {item.isNewsletter && (
-            <View className="rounded bg-indigo-900/60 px-1.5 py-0.5">
-              <Text className="text-[9px] font-semibold text-indigo-300">
-                NL
-              </Text>
-            </View>
-          )}
-          {item.isAutoReply && (
-            <View className="rounded bg-amber-900/60 px-1.5 py-0.5">
-              <Text className="text-[9px] font-semibold text-amber-300">
-                Auto
-              </Text>
-            </View>
-          )}
+          <Text
+            className={styles.snippet}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {item.snippet}
+          </Text>
         </View>
-        <Text className="text-right text-xs font-light text-gray-300">
-          {item.sentAt}
-        </Text>
       </View>
-      <Text className={`text-gray-300 ${styles.subject} ${weight}`}>
-        {item.subject}
-      </Text>
-      <Text className={styles.snippet} numberOfLines={1} ellipsizeMode="tail">
-        {item.snippet}
-      </Text>
     </Pressable>
   );
 };

@@ -3,16 +3,20 @@ import { acquireNetwork } from '@/features/ai/resourceLock';
 import { useContactImportance } from './useSearchHooks';
 import { useLabels } from './useLabelsHook';
 import { useThreads } from './useThreadQueries';
-import { useTrashThread } from './useThreadMutations';
+import {
+  useTrashThread,
+  useArchiveThread,
+  useMarkAsRead,
+} from './useThreadMutations';
 import { triggerManualSync } from '@/features/gmail/syncManager';
 import { syncLabelThreads } from '@/features/gmail/sync';
 import { useEmailTTSQueue } from '@/features/tts';
 import { analytics } from '@/lib/analytics';
 import { useAuthStore } from '@/store/authStore';
-import type { EmailThread } from '@/types';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, InteractionManager } from 'react-native';
+import { InteractionManager } from 'react-native';
 
 export function useInboxScreen() {
   const router = useRouter();
@@ -91,6 +95,7 @@ export function useInboxScreen() {
 
   const handleRefresh = useCallback(async () => {
     if (!accountId) return;
+    setSelectedIds(new Set());
     setIsRefreshing(true);
     try {
       // Acquire network lock for sync operations (waits if local AI is active)
@@ -135,42 +140,92 @@ export function useInboxScreen() {
     router.push('/compose');
   }, [router]);
 
+  // --- Selection mode state ---
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const isSelectionMode = selectedIds.size > 0;
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+
   const trashThreadMutation = useTrashThread(accountId);
-  const trashMutate = trashThreadMutation.mutate;
+  const archiveMutation = useArchiveThread(accountId);
+  const markAsReadMutation = useMarkAsRead(accountId);
 
-  const handleDelete = useCallback(
-    (thread: EmailThread) => {
-      const sender =
-        thread.participants[0]?.name ??
-        thread.participants[0]?.email ??
-        'Unknown';
-      Alert.alert('Delete message', `From: ${sender}\n${thread.subject}`, [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            analytics.threadTrashed(thread.id);
-            trashMutate(thread.id);
-          },
-        },
-      ]);
-    },
-    [trashMutate],
-  );
+  // Clear selection when switching labels
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [selectedLabel]);
 
-  const handleThread = useCallback(
-    (id: string) => router.push({ pathname: '/thread/[id]', params: { id } }),
-    [router],
-  );
+  const toggleSelection = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
-  const handleDeleteById = useCallback(
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleLongPress = useCallback(
     (id: string) => {
-      const thread = threads.find((t) => t.id === id);
-      if (thread) handleDelete(thread);
+      if (isSelectionMode) {
+        toggleSelection(id);
+      } else {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        setSelectedIds(new Set([id]));
+      }
     },
-    [threads, handleDelete],
+    [isSelectionMode, toggleSelection],
   );
+
+  const handlePress = useCallback(
+    (id: string) => {
+      if (isSelectionMode) {
+        toggleSelection(id);
+      } else {
+        router.push({ pathname: '/thread/[id]', params: { id } });
+      }
+    },
+    [isSelectionMode, toggleSelection, router],
+  );
+
+  const batchDelete = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    setIsBatchProcessing(true);
+    const ids = Array.from(selectedIds);
+    await Promise.allSettled(
+      ids.map((id) => {
+        analytics.threadTrashed(id);
+        return trashThreadMutation.mutateAsync(id);
+      }),
+    );
+    analytics.batchTrashed(ids.length);
+    setSelectedIds(new Set());
+    setIsBatchProcessing(false);
+  }, [selectedIds, trashThreadMutation]);
+
+  const batchArchive = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    setIsBatchProcessing(true);
+    const ids = Array.from(selectedIds);
+    await Promise.allSettled(ids.map((id) => archiveMutation.mutateAsync(id)));
+    analytics.batchArchived(ids.length);
+    setSelectedIds(new Set());
+    setIsBatchProcessing(false);
+  }, [selectedIds, archiveMutation]);
+
+  const batchMarkAsRead = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    setIsBatchProcessing(true);
+    const ids = Array.from(selectedIds);
+    await Promise.allSettled(
+      ids.map((id) => markAsReadMutation.mutateAsync(id)),
+    );
+    analytics.batchMarkedAsRead(ids.length);
+    setSelectedIds(new Set());
+    setIsBatchProcessing(false);
+  }, [selectedIds, markAsReadMutation]);
 
   return {
     accountId,
@@ -191,9 +246,15 @@ export function useInboxScreen() {
     handleRefresh,
     handleEndReached,
     handleCompose,
-    handleThread,
-    handleDelete,
-    handleDeleteById,
+    handlePress,
+    handleLongPress,
+    selectedIds,
+    isSelectionMode,
+    clearSelection,
+    batchDelete,
+    batchArchive,
+    batchMarkAsRead,
+    isBatchProcessing,
     isSyncingLabel,
     refetch,
   };

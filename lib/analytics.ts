@@ -46,6 +46,19 @@ export const analytics = {
     posthog.capture('summary_requested', { thread_count: threadCount });
   },
 
+  // Batch actions
+  batchTrashed(count: number) {
+    posthog.capture('batch_threads_trashed', { count });
+  },
+
+  batchArchived(count: number) {
+    posthog.capture('batch_threads_archived', { count });
+  },
+
+  batchMarkedAsRead(count: number) {
+    posthog.capture('batch_threads_marked_as_read', { count });
+  },
+
   // Sync events
   inboxRefreshed() {
     posthog.capture('inbox_refreshed');

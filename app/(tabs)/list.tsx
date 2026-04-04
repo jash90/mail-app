@@ -1,5 +1,6 @@
 import EmailComponent from '@/components/EmailComponent';
 import FolderPickerModal from '@/components/FolderPickerModal';
+import SelectionActionBar from '@/components/SelectionActionBar';
 import { getLabelDisplayName } from '@/lib/labelUtils';
 import SearchModal from '@/components/search';
 import { ListSkeleton } from '@/components/skeletons';
@@ -40,8 +41,15 @@ export default function ListScreen() {
     handleRefresh,
     handleEndReached,
     handleCompose,
-    handleThread,
-    handleDeleteById,
+    handlePress,
+    handleLongPress,
+    selectedIds,
+    isSelectionMode,
+    clearSelection,
+    batchDelete,
+    batchArchive,
+    batchMarkAsRead,
+    isBatchProcessing,
     refetch,
   } = useInboxScreen();
 
@@ -50,11 +58,13 @@ export default function ListScreen() {
       <EmailComponent
         id={item.id}
         item={threadToEmailProps(item, importanceMap)}
-        onPress={handleThread}
-        onLongPress={handleDeleteById}
+        onPress={handlePress}
+        onLongPress={handleLongPress}
+        isSelected={selectedIds.has(item.id)}
+        isSelectionMode={isSelectionMode}
       />
     ),
-    [importanceMap, handleThread, handleDeleteById],
+    [importanceMap, handlePress, handleLongPress, selectedIds, isSelectionMode],
   );
 
   if (isError) {
@@ -123,6 +133,7 @@ export default function ListScreen() {
         <FlashList
           data={threads}
           keyExtractor={(item) => item.id}
+          extraData={selectedIds}
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
@@ -144,12 +155,23 @@ export default function ListScreen() {
         />
       )}
 
-      <Pressable
-        className="absolute right-6 bottom-5 h-16 w-16 items-center justify-center rounded-full bg-white"
-        onPress={handleCompose}
-      >
-        <Icon name="envelope" size={24} color="black" />
-      </Pressable>
+      {isSelectionMode ? (
+        <SelectionActionBar
+          count={selectedIds.size}
+          isProcessing={isBatchProcessing}
+          onDelete={batchDelete}
+          onArchive={batchArchive}
+          onMarkAsRead={batchMarkAsRead}
+          onCancel={clearSelection}
+        />
+      ) : (
+        <Pressable
+          className="absolute right-6 bottom-5 h-16 w-16 items-center justify-center rounded-full bg-white"
+          onPress={handleCompose}
+        >
+          <Icon name="envelope" size={24} color="black" />
+        </Pressable>
+      )}
     </StyledSafeAreaView>
   );
 }
