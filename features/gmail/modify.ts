@@ -1,6 +1,7 @@
 import { gmailRequest } from './api';
 import { updateThreadFlags } from '@/db/repositories/threads';
 import { TTSService } from '@/features/tts';
+import { threadEvents } from '@/lib/threadEvents';
 
 /** Extract Gmail provider ID from internal ID ("accountId_providerThreadId" → "providerThreadId"). */
 const toProviderId = (internalId: string): string => {
@@ -38,6 +39,7 @@ export const markAsRead = async (threadId: string) => {
     TTSService.shared()
       .deleteEmailAudio(threadId)
       .catch(() => {});
+    threadEvents.emitRemoved(threadId);
   }
   return ok;
 };
@@ -83,12 +85,14 @@ export const archiveThread = async (threadId: string) => {
       body: JSON.stringify({ removeLabelIds: ['INBOX'] }),
     }),
   );
-  if (ok)
+  if (ok) {
     try {
       updateThreadFlags(threadId, { is_archived: true });
     } catch {
       /* */
     }
+    threadEvents.emitRemoved(threadId);
+  }
   return ok;
 };
 
@@ -106,6 +110,7 @@ export const trashThread = async (threadId: string) => {
     TTSService.shared()
       .deleteEmailAudio(threadId)
       .catch(() => {});
+    threadEvents.emitRemoved(threadId);
   }
   return ok;
 };

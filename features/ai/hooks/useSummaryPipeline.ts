@@ -5,6 +5,7 @@ import {
 import { getInboxUnreadCount } from '@/features/gmail/labels';
 import { syncLabelThreads } from '@/features/gmail/sync';
 import { getSummaryCache, summarizeEmail } from '@/features/ai/api';
+import { threadEvents } from '@/lib/threadEvents';
 import type { EmailThread } from '@/types';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -32,17 +33,107 @@ export function useSummaryPipeline(accountId: string, userEmail: string) {
   const [phase, setPhase] = useState<PipelinePhase>('idle');
   const [phaseDetail, setPhaseDetail] = useState('');
   const cancelledRef = useRef(false);
-  const retryAbortMapRef = useRef(new Map<number, AbortController>());
+  const retryAbortMapRef = useRef(new Map<string, AbortController>());
+  const itemsRef = useRef<SummaryItem[]>([]);
+  const phaseRef = useRef<PipelinePhase>('idle');
+  const removedDuringRunRef = useRef(new Set<string>());
 
+  // Keep refs in sync with state
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
+  const updatePhase = useCallback((p: PipelinePhase) => {
+    setPhase(p);
+    phaseRef.current = p;
+  }, []);
+
+  // Load a replacement thread when one is removed from the summary
+  const loadReplacementThread = useCallback(async () => {
+    if (!accountId || !userEmail) return;
+
+    const currentIds = new Set(itemsRef.current.map((i) => i.thread.id));
+    const freshThreads = selectThreadsForSummary(
+      accountId,
+      userEmail,
+      SUMMARY_LIMIT,
+    );
+    const newThreads = freshThreads.filter((t) => !currentIds.has(t.id));
+
+    const slotsAvailable = SUMMARY_LIMIT - itemsRef.current.length;
+    const toAdd = newThreads.slice(0, Math.max(0, slotsAvailable));
+    if (toAdd.length === 0) return;
+
+    for (const thread of toAdd) {
+      const cached = getSummaryCache(thread.id);
+      setItems((prev) => [
+        ...prev,
+        { thread, summary: cached, loading: !cached, error: null },
+      ]);
+
+      if (cached) {
+        setProcessed((p) => p + 1);
+        continue;
+      }
+
+      try {
+        const summary = await summarizeEmail(
+          thread.id,
+          thread.subject,
+          thread.snippet,
+        );
+        setItems((prev) =>
+          prev.map((i) =>
+            i.thread.id === thread.id ? { ...i, summary, loading: false } : i,
+          ),
+        );
+        setProcessed((p) => p + 1);
+      } catch (err) {
+        setItems((prev) =>
+          prev.map((i) =>
+            i.thread.id === thread.id
+              ? {
+                  ...i,
+                  loading: false,
+                  error: err instanceof Error ? err.message : 'Unknown error',
+                }
+              : i,
+          ),
+        );
+      }
+    }
+  }, [accountId, userEmail]);
+
+  // Subscribe to thread removal events
+  useEffect(() => {
+    return threadEvents.onRemoved((threadId) => {
+      if (!itemsRef.current.some((i) => i.thread.id === threadId)) return;
+
+      setItems((prev) => {
+        const removed = prev.find((i) => i.thread.id === threadId);
+        if (removed?.summary) setProcessed((p) => Math.max(0, p - 1));
+        return prev.filter((i) => i.thread.id !== threadId);
+      });
+
+      removedDuringRunRef.current.add(threadId);
+
+      if (phaseRef.current === 'done') {
+        loadReplacementThread();
+      }
+    });
+  }, [loadReplacementThread]);
+
+  // Main pipeline
   useEffect(() => {
     if (!accountId || !userEmail) return;
     cancelledRef.current = false;
+
     const abortController = new AbortController();
 
     (async () => {
       try {
         // Phase 1: Check server vs local unread count
-        setPhase('checking');
+        updatePhase('checking');
         setPhaseDetail('Checking for new emails…');
 
         const localCount = getLocalUnreadInboxCount(accountId);
@@ -56,7 +147,7 @@ export function useSummaryPipeline(accountId: string, userEmail: string) {
 
         // Phase 2: Sync if counts don't match
         if (serverCount !== null && serverCount !== localCount) {
-          setPhase('syncing');
+          updatePhase('syncing');
           const diff = serverCount - localCount;
           setPhaseDetail(
             diff > 0
@@ -72,7 +163,7 @@ export function useSummaryPipeline(accountId: string, userEmail: string) {
         }
 
         // Phase 3: Select top threads by tier
-        setPhase('selecting');
+        updatePhase('selecting');
         setPhaseDetail('Selecting most important emails…');
 
         const threads = selectThreadsForSummary(
@@ -84,7 +175,7 @@ export function useSummaryPipeline(accountId: string, userEmail: string) {
 
         if (threads.length === 0) {
           setItems([]);
-          setPhase('done');
+          updatePhase('done');
           setPhaseDetail('');
           return;
         }
@@ -105,17 +196,18 @@ export function useSummaryPipeline(accountId: string, userEmail: string) {
         setProcessed(cachedCount);
 
         if (cachedCount === threads.length) {
-          setPhase('done');
+          updatePhase('done');
           setPhaseDetail('');
           return;
         }
 
-        setPhase('summarizing');
+        updatePhase('summarizing');
         setPhaseDetail(`Summarizing ${cachedCount + 1} of ${threads.length}…`);
 
         for (let i = 0; i < threads.length; i++) {
           if (cancelledRef.current) break;
           if (initialItems[i].summary) continue;
+          if (removedDuringRunRef.current.has(threads[i].id)) continue;
 
           setPhaseDetail(`Summarizing ${i + 1} of ${threads.length}…`);
 
@@ -128,36 +220,47 @@ export function useSummaryPipeline(accountId: string, userEmail: string) {
               abortController.signal,
             );
             if (cancelledRef.current) break;
-            setItems((prev) => {
-              const updated = [...prev];
-              updated[i] = { ...updated[i], summary, loading: false };
-              return updated;
-            });
+            setItems((prev) =>
+              prev.map((item) =>
+                item.thread.id === t.id
+                  ? { ...item, summary, loading: false }
+                  : item,
+              ),
+            );
             setProcessed((prev) => prev + 1);
           } catch (err) {
             if (cancelledRef.current) break;
             console.warn(
               `[SummaryPipeline] Failed to summarize thread ${t.id}`,
             );
-            setItems((prev) => {
-              const updated = [...prev];
-              updated[i] = {
-                ...updated[i],
-                loading: false,
-                error: err instanceof Error ? err.message : 'Unknown error',
-              };
-              return updated;
-            });
+            setItems((prev) =>
+              prev.map((item) =>
+                item.thread.id === t.id
+                  ? {
+                      ...item,
+                      loading: false,
+                      error:
+                        err instanceof Error ? err.message : 'Unknown error',
+                    }
+                  : item,
+              ),
+            );
           }
         }
 
         if (!cancelledRef.current) {
-          setPhase('done');
+          updatePhase('done');
           setPhaseDetail('');
+
+          // Process any removals that occurred during summarizing
+          if (removedDuringRunRef.current.size > 0) {
+            removedDuringRunRef.current.clear();
+            loadReplacementThread();
+          }
         }
       } catch (err) {
         if (!cancelledRef.current) {
-          setPhase('error');
+          updatePhase('error');
           setPhaseDetail(
             err instanceof Error ? err.message : 'Something went wrong',
           );
@@ -172,57 +275,64 @@ export function useSummaryPipeline(accountId: string, userEmail: string) {
       for (const ctrl of retryAbortMap.values()) ctrl.abort();
       retryAbortMap.clear();
     };
-  }, [accountId, userEmail]);
+  }, [accountId, userEmail, updatePhase, loadReplacementThread]);
 
-  const retrySummary = useCallback(async (index: number, item: SummaryItem) => {
-    setItems((prev) => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], loading: true, error: null };
-      return updated;
-    });
+  const retrySummary = useCallback(
+    async (_index: number, item: SummaryItem) => {
+      const threadId = item.thread.id;
 
-    const abort = new AbortController();
-    retryAbortMapRef.current.set(index, abort);
-
-    try {
-      const summary = await summarizeEmail(
-        item.thread.id,
-        item.thread.subject,
-        item.thread.snippet,
-        abort.signal,
+      setItems((prev) =>
+        prev.map((i) =>
+          i.thread.id === threadId ? { ...i, loading: true, error: null } : i,
+        ),
       );
-      if (abort.signal.aborted) return;
-      setItems((prev) => {
-        const updated = [...prev];
-        updated[index] = { ...updated[index], summary, loading: false };
-        return updated;
-      });
-      setProcessed((prev) => prev + 1);
-    } catch (err) {
-      if (abort.signal.aborted) return;
-      console.warn(
-        `[SummaryPipeline] Retry failed for thread ${item.thread.id}`,
-      );
-      setItems((prev) => {
-        const updated = [...prev];
-        updated[index] = {
-          ...updated[index],
-          loading: false,
-          error: err instanceof Error ? err.message : 'Unknown error',
-        };
-        return updated;
-      });
-    } finally {
-      retryAbortMapRef.current.delete(index);
-    }
-  }, []);
+
+      const abort = new AbortController();
+      retryAbortMapRef.current.set(threadId, abort);
+
+      try {
+        const summary = await summarizeEmail(
+          item.thread.id,
+          item.thread.subject,
+          item.thread.snippet,
+          abort.signal,
+        );
+        if (abort.signal.aborted) return;
+        setItems((prev) =>
+          prev.map((i) =>
+            i.thread.id === threadId ? { ...i, summary, loading: false } : i,
+          ),
+        );
+        setProcessed((prev) => prev + 1);
+      } catch (err) {
+        if (abort.signal.aborted) return;
+        console.warn(
+          `[SummaryPipeline] Retry failed for thread ${item.thread.id}`,
+        );
+        setItems((prev) =>
+          prev.map((i) =>
+            i.thread.id === threadId
+              ? {
+                  ...i,
+                  loading: false,
+                  error: err instanceof Error ? err.message : 'Unknown error',
+                }
+              : i,
+          ),
+        );
+      } finally {
+        retryAbortMapRef.current.delete(threadId);
+      }
+    },
+    [],
+  );
 
   const clearAll = useCallback(() => {
     setItems([]);
     setProcessed(0);
-    setPhase('idle');
+    updatePhase('idle');
     setPhaseDetail('');
-  }, []);
+  }, [updatePhase]);
 
   return {
     items,

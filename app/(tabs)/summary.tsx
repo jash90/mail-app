@@ -1,5 +1,9 @@
 import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
-import { PhaseBanner, SummaryItemRow } from '@/components/summary';
+import {
+  PhaseBanner,
+  SummaryHeader,
+  SummaryItemRow,
+} from '@/components/summary';
 import { db } from '@/db/client';
 import { summaryCache } from '@/db/schema';
 import {
@@ -10,15 +14,11 @@ import { useAuthStore } from '@/store/authStore';
 import { TTSService } from '@/features/tts';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
 import { useCallback } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, FlatList, Text, View } from 'react-native';
 
 const listContentStyle = { paddingHorizontal: 16, paddingBottom: 32 } as const;
+
+const keyExtractor = (item: SummaryItem) => item.thread.id;
 
 export default function SummaryScreen() {
   const user = useAuthStore((s) => s.user);
@@ -34,73 +34,65 @@ export default function SummaryScreen() {
     [retrySummary],
   );
 
+  const handleClearCache = useCallback(() => {
+    db.delete(summaryCache).run();
+    TTSService.shared().clearCache();
+    clearAll();
+    console.log('[DEV] Summary + TTS audio cache cleared');
+  }, [clearAll]);
+
   const isLoading =
     phase === 'checking' || phase === 'syncing' || phase === 'selecting';
 
-  return (
-    <StyledSafeAreaView className="flex-1 bg-black" edges={['top']}>
-      <View className="flex-row items-center gap-4 p-4">
-        <Text className="flex-1 text-2xl font-bold text-white">AI Summary</Text>
-        {__DEV__ && (
-          <Pressable
-            onPress={() => {
-              db.delete(summaryCache).run();
-              TTSService.shared().clearCache();
-              clearAll();
-              console.log('[DEV] Summary + TTS audio cache cleared');
-            }}
-          >
-            <Icon name="trash" size={18} color="#f87171" />
-          </Pressable>
-        )}
-      </View>
-
-      <PhaseBanner phase={phase} detail={phaseDetail} />
-
-      {isLoading ? (
+  if (isLoading) {
+    return (
+      <StyledSafeAreaView className="flex-1 bg-black" edges={['top']}>
+        <SummaryHeader onClear={handleClearCache} />
+        <PhaseBanner phase={phase} detail={phaseDetail} />
         <View className="flex-1 items-center justify-center gap-4">
           <ActivityIndicator size="large" color="#818cf8" />
           <Text className="text-base text-zinc-400">{phaseDetail}</Text>
         </View>
-      ) : total === 0 && phase === 'done' ? (
-        <View className="flex-1 items-center justify-center gap-2">
-          <Icon name="check" size={32} color="#4ade80" />
-          <Text className="text-lg text-zinc-400">
-            No unread emails to summarize
-          </Text>
-          <Text className="px-8 text-center text-sm text-zinc-600">
-            Unread inbox emails will appear here with AI summaries
-          </Text>
-        </View>
-      ) : total === 0 && phase === 'error' ? (
-        <View className="flex-1 items-center justify-center gap-2">
-          <Icon name="exclamation" size={32} color="#f87171" />
-          <Text className="text-lg text-zinc-400">Failed to load</Text>
-          <Text className="px-8 text-center text-sm text-zinc-600">
-            {phaseDetail}
-          </Text>
-        </View>
-      ) : (
-        <>
-          {phase === 'summarizing' && (
-            <Text className="px-4 pb-2 text-sm text-zinc-400">
-              {phaseDetail}
-            </Text>
-          )}
-          {phase === 'done' && (
-            <Text className="px-4 pb-2 text-sm text-zinc-400">
-              All {total} email{total !== 1 ? 's' : ''} summarized
-            </Text>
-          )}
+      </StyledSafeAreaView>
+    );
+  }
 
-          <FlatList
-            data={items}
-            keyExtractor={(item) => item.thread.id}
-            contentContainerStyle={listContentStyle}
-            renderItem={renderItem}
+  if (total === 0 && (phase === 'done' || phase === 'error')) {
+    const isDone = phase === 'done';
+    return (
+      <StyledSafeAreaView className="flex-1 bg-black" edges={['top']}>
+        <SummaryHeader onClear={handleClearCache} />
+        <View className="flex-1 items-center justify-center gap-2">
+          <Icon
+            name={isDone ? 'check' : 'exclamation'}
+            size={32}
+            color={isDone ? '#4ade80' : '#f87171'}
           />
-        </>
-      )}
+          <Text className="text-lg text-zinc-400">
+            {isDone ? 'No unread emails to summarize' : 'Failed to load'}
+          </Text>
+          <Text className="px-8 text-center text-sm text-zinc-600">
+            {isDone
+              ? 'Unread inbox emails will appear here with AI summaries'
+              : phaseDetail}
+          </Text>
+        </View>
+      </StyledSafeAreaView>
+    );
+  }
+
+  return (
+    <StyledSafeAreaView className="flex-1 bg-black" edges={['top']}>
+      <SummaryHeader onClear={handleClearCache} />
+      <PhaseBanner phase={phase} detail={phaseDetail} />
+      <FlatList
+        data={items}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        contentContainerStyle={listContentStyle}
+        initialNumToRender={10}
+        removeClippedSubviews
+      />
     </StyledSafeAreaView>
   );
 }

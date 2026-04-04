@@ -1,5 +1,5 @@
 import type { SummaryItem } from '@/features/ai/hooks/useSummaryPipeline';
-import { memo } from 'react';
+import { memo, useCallback } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 interface SummaryItemRowProps {
@@ -13,12 +13,20 @@ export const SummaryItemRow = memo(function SummaryItemRow({
   index,
   onRetry,
 }: SummaryItemRowProps) {
+  const handleRetry = useCallback(
+    () => onRetry(index, item),
+    [onRetry, index, item],
+  );
+
+  const sender =
+    item.thread.participants[0]?.name ||
+    item.thread.participants[0]?.email ||
+    'Unknown';
+
   return (
     <View className="mb-3 rounded-xl bg-zinc-900 p-4">
       <Text className="text-sm font-semibold text-indigo-400" numberOfLines={1}>
-        {item.thread.participants[0]?.name ||
-          item.thread.participants[0]?.email ||
-          'Unknown'}
+        {sender}
       </Text>
       <Text className="mt-1 text-base font-medium text-white" numberOfLines={2}>
         {item.thread.subject}
@@ -36,7 +44,8 @@ export const SummaryItemRow = memo(function SummaryItemRow({
             Error: {item.error}
           </Text>
           <Pressable
-            onPress={() => onRetry(index, item)}
+            onPress={handleRetry}
+            hitSlop={8}
             className="rounded-lg bg-indigo-600 px-3 py-1.5"
           >
             <Text className="text-xs font-semibold text-white">Retry</Text>
