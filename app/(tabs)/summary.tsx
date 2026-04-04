@@ -18,7 +18,6 @@ import {
   ActivityIndicator,
   FlatList,
   RefreshControl,
-  ScrollView,
   Text,
   View,
 } from 'react-native';
@@ -72,46 +71,30 @@ export default function SummaryScreen() {
     console.log('[DEV] Summary + TTS audio cache cleared');
   }, [clearAll]);
 
-  if (isLoading) {
-    return (
-      <StyledSafeAreaView className="flex-1 bg-black" edges={['top']}>
-        <SummaryHeader onClear={handleClearCache} />
-        <PhaseBanner phase={phase} detail={phaseDetail} />
-        <View className="flex-1 items-center justify-center gap-4">
-          <ActivityIndicator size="large" color="#818cf8" />
-          <Text className="text-base text-zinc-400">{phaseDetail}</Text>
-        </View>
-      </StyledSafeAreaView>
-    );
-  }
-
-  if (total === 0 && (phase === 'done' || phase === 'error')) {
-    const isDone = phase === 'done';
-    return (
-      <StyledSafeAreaView className="flex-1 bg-black" edges={['top']}>
-        <SummaryHeader onClear={handleClearCache} />
-        <ScrollView
-          className="flex-1"
-          contentContainerClassName="flex-1 items-center justify-center gap-2"
-          refreshControl={refreshControl}
-        >
-          <Icon
-            name={isDone ? 'check' : 'exclamation'}
-            size={32}
-            color={isDone ? '#4ade80' : '#f87171'}
-          />
-          <Text className="text-lg text-zinc-400">
-            {isDone ? 'No unread emails to summarize' : 'Failed to load'}
-          </Text>
-          <Text className="px-8 text-center text-sm text-zinc-600">
-            {isDone
-              ? 'Unread inbox emails will appear here with AI summaries'
-              : phaseDetail}
-          </Text>
-        </ScrollView>
-      </StyledSafeAreaView>
-    );
-  }
+  const emptyComponent = isLoading ? (
+    <View className="flex-1 items-center justify-center gap-4 pt-32">
+      <ActivityIndicator size="large" color="#818cf8" />
+      <Text className="text-base text-zinc-400">{phaseDetail}</Text>
+    </View>
+  ) : phase === 'error' ? (
+    <View className="flex-1 items-center justify-center gap-2 pt-32">
+      <Icon name="exclamation" size={32} color="#f87171" />
+      <Text className="text-lg text-zinc-400">Failed to load</Text>
+      <Text className="px-8 text-center text-sm text-zinc-600">
+        {phaseDetail}
+      </Text>
+    </View>
+  ) : phase === 'done' ? (
+    <View className="flex-1 items-center justify-center gap-2 pt-32">
+      <Icon name="check" size={32} color="#4ade80" />
+      <Text className="text-lg text-zinc-400">
+        No unread emails to summarize
+      </Text>
+      <Text className="px-8 text-center text-sm text-zinc-600">
+        Unread inbox emails will appear here with AI summaries
+      </Text>
+    </View>
+  ) : null;
 
   return (
     <StyledSafeAreaView className="flex-1 bg-black" edges={['top']}>
@@ -121,7 +104,8 @@ export default function SummaryScreen() {
         data={items}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
-        contentContainerStyle={listContentStyle}
+        ListEmptyComponent={emptyComponent}
+        contentContainerStyle={total === 0 ? { flex: 1 } : listContentStyle}
         refreshControl={refreshControl}
         initialNumToRender={10}
         removeClippedSubviews
