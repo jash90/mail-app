@@ -2,6 +2,7 @@ import { generateReply } from '@/features/ai/api';
 import { useMarkAsRead } from './useThreadMutations';
 import { useSendReply } from './useSendHooks';
 import { useThread, useThreadMessages } from './useThreadQueries';
+import { recordAction } from '@/db/repositories/userActions';
 import { analytics } from '@/lib/analytics';
 import { parseCompositeId } from '@/lib/parseCompositeId';
 import { useAuthStore } from '@/store/authStore';
@@ -138,8 +139,9 @@ export function useThreadScreen(compositeId: string) {
   useEffect(() => {
     if (providerThreadId) {
       markAsRead(providerThreadId).catch(() => {});
+      recordAction(accountId, providerThreadId, 'view');
     }
-  }, [providerThreadId, markAsRead]);
+  }, [providerThreadId, markAsRead, accountId]);
 
   return {
     thread,

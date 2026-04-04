@@ -1,5 +1,6 @@
 import { gmailRequest } from './api';
 import { updateThreadFlags } from '@/db/repositories/threads';
+import { recordAction } from '@/db/repositories/userActions';
 import { TTSService } from '@/features/tts';
 import { threadEvents } from '@/lib/threadEvents';
 
@@ -7,6 +8,12 @@ import { threadEvents } from '@/lib/threadEvents';
 const toProviderId = (internalId: string): string => {
   const idx = internalId.lastIndexOf('_');
   return idx >= 0 ? internalId.slice(idx + 1) : internalId;
+};
+
+/** Extract accountId from internal ID ("accountId_providerThreadId" → "accountId"). */
+const toAccountId = (internalId: string): string => {
+  const idx = internalId.lastIndexOf('_');
+  return idx >= 0 ? internalId.slice(0, idx) : '';
 };
 
 const safeModify = async (
@@ -91,6 +98,8 @@ export const archiveThread = async (threadId: string) => {
     } catch {
       /* */
     }
+    const acct = toAccountId(threadId);
+    if (acct) recordAction(acct, threadId, 'archive');
     threadEvents.emitRemoved(threadId);
   }
   return ok;
@@ -107,6 +116,8 @@ export const trashThread = async (threadId: string) => {
     } catch {
       /* */
     }
+    const acct = toAccountId(threadId);
+    if (acct) recordAction(acct, threadId, 'trash');
     TTSService.shared()
       .deleteEmailAudio(threadId)
       .catch(() => {});

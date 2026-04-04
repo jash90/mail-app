@@ -12,6 +12,7 @@ import {
   trashThread,
   deleteThread,
 } from '../modify';
+import { recordAction } from '@/db/repositories/userActions';
 
 const useGmailMutation = <TVariables>(
   accountId: string,
@@ -41,8 +42,19 @@ export const useMarkAsUnread = (accountId: string) =>
   useGmailMutation(accountId, markAsUnread);
 
 export const useToggleStar = (accountId: string) =>
-  useGmailMutation(accountId, (vars: { messageId: string; starred: boolean }) =>
-    toggleStar(vars.messageId, vars.starred),
+  useGmailMutation(
+    accountId,
+    async (vars: { messageId: string; threadId: string; starred: boolean }) => {
+      const ok = await toggleStar(vars.messageId, vars.starred);
+      if (ok && vars.threadId) {
+        recordAction(
+          accountId,
+          vars.threadId,
+          vars.starred ? 'star' : 'unstar',
+        );
+      }
+      return ok;
+    },
   );
 
 export const useArchiveThread = (accountId: string) =>

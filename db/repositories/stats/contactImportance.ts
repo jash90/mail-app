@@ -1,6 +1,7 @@
 import { and, eq, ne, sql } from 'drizzle-orm';
 import { db } from '../../client';
 import { messageRecipients, messages } from '../../schema';
+import { getContactActionSignals } from '../userActions';
 
 /** Compute contact importance tiers (1-5) based on email exchange history. */
 export function getContactImportanceMap(
@@ -77,6 +78,9 @@ export function getContactImportanceMap(
   const allEmails = new Set([...recvMap.keys(), ...sentMap.keys()]);
   if (allEmails.size === 0) return new Map<string, number>();
 
+  // User action signals (star, archive, trash, reply, view)
+  const actionSignals = getContactActionSignals(accountId);
+
   // Compute rawScore with receive/send ratio penalty
   // Penalty: if received >> sent, the contact is likely a newsletter/notification
   //   sentCount = 0          → ×0.4  (nigdy nie odpowiadasz = prawdopodobnie spam)
@@ -93,10 +97,16 @@ export function getContactImportanceMap(
     const oldS = sentMap.get(email)?.oldCount ?? 0;
     const nlc = recvMap.get(email)?.nlCount ?? 0;
 
-    const base = (rc > 0 ? sc / rc : sc) + oldR / 4 + oldS * 10;
+    // Volume: log of total interactions (prevents high-volume contacts from dominating)
+    const volume = Math.log2(1 + rc + sc);
+    // Reciprocity: how balanced the conversation is (0 = one-way, 1 = balanced)
+    const reciprocity =
+      rc > 0 && sc > 0 ? 1 - Math.abs(rc - sc) / (rc + sc) : 0;
+    // Historical bonus (tie-breaker, not primary signal)
+    const history = oldR * 0.15 + oldS * 0.3;
+    const base = volume * (0.5 + 0.5 * reciprocity) + history;
 
     let multiplier: number;
-    // Newsletter detection via List-Id/List-Unsubscribe headers
     if (rc > 0 && nlc / rc > 0.8) {
       multiplier = 0.2;
     } else if (sc === 0) {
@@ -109,11 +119,24 @@ export function getContactImportanceMap(
       else multiplier = 1.0;
     }
 
-    scoreMap.set(email, base * multiplier);
+    // User action boost (star, view, trash — reply excluded because it already
+    // increases sc which feeds into the base formula via volume + reciprocity)
+    const actions = actionSignals.get(email);
+    let actionBoost = 0;
+    if (actions) {
+      actionBoost =
+        actions.starCount * 1.5 +
+        Math.min(actions.viewCount * 0.05, 2.0) -
+        actions.trashCount * 0.5;
+    }
+
+    scoreMap.set(email, base * multiplier + actionBoost);
   }
 
-  // Sort scores descending to compute percentile-based tiers
-  const sorted = [...scoreMap.entries()].sort((a, b) => b[1] - a[1]);
+  // Sort scores descending; secondary sort by email for deterministic ordering
+  const sorted = [...scoreMap.entries()].sort(
+    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+  );
   const total = sorted.length;
   const resultMap = new Map<string, number>();
 
@@ -127,13 +150,14 @@ export function getContactImportanceMap(
     else if (percentile < 0.75) tier = 2;
     else tier = 1;
 
-    // Boost: 1-5 emaili od kontaktu → minimum tier 3 (nowy, ale realny kontakt)
     const rc = recvMap.get(email)?.count ?? 0;
     const sc = sentMap.get(email)?.count ?? 0;
-    if (rc >= 1 && rc <= 5 && tier < 3) tier = 3;
 
-    // Penalty: never replied → tier -2
-    if (sc === 0) tier = Math.max(1, tier - 2);
+    // Penalty: never replied → tier -2 (but only for contacts with >10 emails,
+    // to not bury new contacts you haven't had time to reply to yet)
+    if (sc === 0 && rc > 10) tier = Math.max(1, tier - 2);
+    // Boost: new or recent contact (≤10 emails, no reply yet) → minimum tier 3
+    if (rc >= 1 && rc <= 10 && sc === 0 && tier < 3) tier = 3;
 
     resultMap.set(email, tier);
   }
@@ -222,6 +246,8 @@ export function getContactImportanceDetails(
   const allEmails = new Set([...recvMap.keys(), ...sentMap.keys()]);
   if (allEmails.size === 0) return [];
 
+  const actionSignals = getContactActionSignals(accountId);
+
   const scoreMap = new Map<
     string,
     { score: number; multiplier: number; nlRatio: number }
@@ -234,7 +260,11 @@ export function getContactImportanceDetails(
     const oldS = sentMap.get(email)?.oldCount ?? 0;
     const nlc = recvMap.get(email)?.nlCount ?? 0;
 
-    const base = (rc > 0 ? sc / rc : sc) + oldR / 4 + oldS * 10;
+    const volume = Math.log2(1 + rc + sc);
+    const reciprocity =
+      rc > 0 && sc > 0 ? 1 - Math.abs(rc - sc) / (rc + sc) : 0;
+    const history = oldR * 0.15 + oldS * 0.3;
+    const base = volume * (0.5 + 0.5 * reciprocity) + history;
     const nlRatio = rc > 0 ? nlc / rc : 0;
 
     let multiplier: number;
@@ -250,11 +280,24 @@ export function getContactImportanceDetails(
       else multiplier = 1.0;
     }
 
-    scoreMap.set(email, { score: base * multiplier, multiplier, nlRatio });
+    const actions = actionSignals.get(email);
+    let actionBoost = 0;
+    if (actions) {
+      actionBoost =
+        actions.starCount * 1.5 +
+        Math.min(actions.viewCount * 0.05, 2.0) -
+        actions.trashCount * 0.5;
+    }
+
+    scoreMap.set(email, {
+      score: base * multiplier + actionBoost,
+      multiplier,
+      nlRatio,
+    });
   }
 
   const sorted = [...scoreMap.entries()].sort(
-    (a, b) => b[1].score - a[1].score,
+    (a, b) => b[1].score - a[1].score || a[0].localeCompare(b[0]),
   );
   const total = sorted.length;
   const results: ContactImportanceDetail[] = [];
@@ -273,10 +316,10 @@ export function getContactImportanceDetails(
     else if (percentile < 0.75) tier = 2;
     else tier = 1;
 
-    if (rc >= 1 && rc <= 5 && tier < 3) tier = 3;
-
-    // Penalty: never replied → tier -2
-    if (sc === 0) tier = Math.max(1, tier - 2);
+    // Penalty: never replied but >10 emails → tier -2 (established one-way sender)
+    if (sc === 0 && rc > 10) tier = Math.max(1, tier - 2);
+    // Boost: new/recent contact (≤10 emails, no reply yet) → minimum tier 3
+    if (rc >= 1 && rc <= 10 && sc === 0 && tier < 3) tier = 3;
 
     let reason: string;
     if (nlRatio > 0.8) {
@@ -285,14 +328,26 @@ export function getContactImportanceDetails(
       reason = 'Two-way conversation';
     } else if (sc > 0 && rc > 0) {
       reason = `One-sided (${rc}:${sc} ratio)`;
-    } else if (sc === 0 && rc > 0) {
+    } else if (sc === 0 && rc > 10) {
       reason = 'Never replied';
+    } else if (sc === 0 && rc > 0) {
+      reason = 'New contact';
     } else {
       reason = 'Sent only';
     }
 
-    if (rc >= 1 && rc <= 5 && tier === 3 && percentile >= 0.5) {
-      reason += ' · New contact boost';
+    if (rc >= 1 && rc <= 10 && tier === 3 && sc === 0) {
+      reason += ' · Boost';
+    }
+
+    const actions = actionSignals.get(email);
+    if (actions) {
+      const parts: string[] = [];
+      if (actions.starCount > 0) parts.push(`${actions.starCount} star`);
+      if (actions.replyCount > 0) parts.push(`${actions.replyCount} reply`);
+      if (actions.viewCount > 0) parts.push(`${actions.viewCount} view`);
+      if (actions.trashCount > 0) parts.push(`${actions.trashCount} trash`);
+      if (parts.length > 0) reason += ` · Actions: ${parts.join(', ')}`;
     }
 
     results.push({

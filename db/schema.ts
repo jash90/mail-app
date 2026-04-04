@@ -180,6 +180,29 @@ export const aiTokenUsage = sqliteTable(
   ],
 );
 
+export const userActions = sqliteTable(
+  'user_actions',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    accountId: text('account_id').notNull(),
+    contactEmail: text('contact_email').notNull(),
+    threadId: text('thread_id'),
+    actionType: text('action_type')
+      .$type<
+        'star' | 'unstar' | 'archive' | 'trash' | 'reply' | 'send' | 'view'
+      >()
+      .notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => [
+    index('idx_user_actions_account_contact').on(
+      table.accountId,
+      table.contactEmail,
+    ),
+    index('idx_user_actions_type').on(table.actionType),
+  ],
+);
+
 export const syncState = sqliteTable('sync_state', {
   accountId: text('account_id').primaryKey(),
   historyId: text('history_id'),
