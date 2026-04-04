@@ -4,6 +4,8 @@ export {
   getThreadsPaginated,
   getUnreadThreads,
   getThreadCount,
+  getLocalUnreadInboxCount,
+  selectThreadsForSummary,
 } from './queries';
 export {
   updateThreadFlags,

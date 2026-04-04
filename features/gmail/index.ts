@@ -5,7 +5,7 @@ export {
   apiRequestRaw,
   clearTokenCache,
 } from './api';
-export { getLabels, getLabelById } from './labels';
+export { getLabels, getLabelById, getInboxUnreadCount } from './labels';
 export { listThreads, getThread, mapGmailThreadToEmailThread } from './threads';
 export { getMessage, getThreadMessages, parseGmailMessage } from './messages';
 export { sendEmail, sendReply } from './send';

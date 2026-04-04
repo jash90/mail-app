@@ -1,6 +1,6 @@
 import { chunk } from '@/lib/chunk';
 import type { EmailParticipant, EmailThread } from '@/types';
-import { asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 import { db } from '../../client';
 import {
   participants,
@@ -125,6 +125,40 @@ export function hydrateThreads(
       labelsByThread.get(row.id) ?? [],
     ),
   );
+}
+
+/**
+ * Batch-fetch only the sender (position=0) email for each thread.
+ * Much lighter than full hydration — used for tier-based selection.
+ */
+export function getSenderEmails(threadIds: string[]): Map<string, string> {
+  if (threadIds.length === 0) return new Map();
+
+  const result = new Map<string, string>();
+  for (const batch of chunk(threadIds, CHUNK_SIZE)) {
+    const rows = db
+      .select({
+        threadId: threadParticipants.threadId,
+        email: participants.email,
+      })
+      .from(threadParticipants)
+      .innerJoin(
+        participants,
+        eq(threadParticipants.participantId, participants.id),
+      )
+      .where(
+        and(
+          inArray(threadParticipants.threadId, batch),
+          eq(threadParticipants.position, 0),
+        ),
+      )
+      .all();
+
+    for (const r of rows) {
+      result.set(r.threadId, r.email.toLowerCase());
+    }
+  }
+  return result;
 }
 
 /** Hydrate a single thread row — used by getThreadById where N+1 is not an issue. */

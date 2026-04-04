@@ -37,3 +37,11 @@ export const getLabelById = async (
   const label = await gmailRequest<GmailLabel>(`/labels/${labelId}`);
   return mapGmailLabel(accountId, label);
 };
+
+/** Get the unread thread count for INBOX from Gmail API (lightweight, single request). */
+export const getInboxUnreadCount = async (): Promise<number> => {
+  const label = await gmailRequest<GmailLabel & { threadsUnread?: number }>(
+    '/labels/INBOX',
+  );
+  return label.threadsUnread ?? label.messagesUnread ?? 0;
+};

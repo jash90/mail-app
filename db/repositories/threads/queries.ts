@@ -3,7 +3,13 @@ import type { EmailThread } from '@/types';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '../../client';
 import { threadLabels, threads } from '../../schema';
-import { CHUNK_SIZE, getThreadColumns, hydrateThreads } from './hydration';
+import {
+  CHUNK_SIZE,
+  getThreadColumns,
+  getSenderEmails,
+  hydrateThreads,
+} from './hydration';
+import { getContactImportanceMap } from '../stats';
 
 export type SortMode =
   | 'recent'
@@ -142,4 +148,77 @@ export function getThreadCount(accountId: string): number {
     .where(eq(threads.accountId, accountId))
     .get();
   return row?.count ?? 0;
+}
+
+/** Count unread INBOX threads in local SQLite. */
+export function getLocalUnreadInboxCount(accountId: string): number {
+  const row = db
+    .select({ count: sql<number>`COUNT(DISTINCT ${threads.id})` })
+    .from(threads)
+    .innerJoin(threadLabels, eq(threads.id, threadLabels.threadId))
+    .where(
+      and(
+        eq(threads.accountId, accountId),
+        eq(threads.isRead, false),
+        eq(threadLabels.labelId, 'INBOX'),
+      ),
+    )
+    .get();
+  return row?.count ?? 0;
+}
+
+/**
+ * Select top threads for AI summary using cascading tier selection (5→4→3→2→1).
+ * Reads ALL unread INBOX metadata (lightweight), assigns tiers, picks top `limit`.
+ */
+export function selectThreadsForSummary(
+  accountId: string,
+  userEmail: string,
+  limit: number = 20,
+): EmailThread[] {
+  const threadColumns = getThreadColumns();
+
+  // 1. Fetch ALL unread INBOX thread rows (lightweight — no hydration yet)
+  const allUnreadRows = db
+    .selectDistinct(threadColumns)
+    .from(threads)
+    .innerJoin(threadLabels, eq(threads.id, threadLabels.threadId))
+    .where(
+      and(
+        eq(threads.accountId, accountId),
+        eq(threads.isRead, false),
+        eq(threadLabels.labelId, 'INBOX'),
+      ),
+    )
+    .orderBy(desc(threads.lastMessageAt))
+    .all();
+
+  if (allUnreadRows.length === 0) return [];
+
+  // 2. Batch-fetch only sender emails (position=0) — much lighter than full hydration
+  const senderMap = getSenderEmails(allUnreadRows.map((r) => r.id));
+
+  // 3. Get importance tiers
+  const importanceMap = getContactImportanceMap(accountId, userEmail);
+
+  // 4. Assign tier to each thread
+  const withTier = allUnreadRows.map((row) => ({
+    row,
+    tier: importanceMap.get(senderMap.get(row.id) ?? '') ?? 1,
+  }));
+
+  // 5. Cascading selection: tier 5 → 4 → 3 → 2 → 1, within tier sort by recency
+  const selected: (typeof threads.$inferSelect)[] = [];
+  for (let tier = 5; tier >= 1 && selected.length < limit; tier--) {
+    const tierThreads = withTier
+      .filter((t) => t.tier === tier)
+      .sort((a, b) => b.row.lastMessageAt.localeCompare(a.row.lastMessageAt));
+    for (const t of tierThreads) {
+      if (selected.length >= limit) break;
+      selected.push(t.row);
+    }
+  }
+
+  // 6. Hydrate only the selected threads (max 20)
+  return hydrateThreads(selected);
 }
