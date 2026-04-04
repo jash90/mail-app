@@ -13,8 +13,15 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { TTSService } from '@/features/tts';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
-import { useCallback } from 'react';
-import { ActivityIndicator, FlatList, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
 
 const listContentStyle = { paddingHorizontal: 16, paddingBottom: 32 } as const;
 
@@ -24,8 +31,32 @@ export default function SummaryScreen() {
   const user = useAuthStore((s) => s.user);
   const accountId = user?.id ?? '';
   const userEmail = user?.email ?? '';
-  const { items, total, phase, phaseDetail, retrySummary, clearAll } =
+  const { items, total, phase, phaseDetail, retrySummary, restart, clearAll } =
     useSummaryPipeline(accountId, userEmail);
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    restart();
+  }, [restart]);
+
+  const isLoading =
+    phase === 'checking' || phase === 'syncing' || phase === 'selecting';
+
+  // Clear refreshing indicator once pipeline moves past initial phases
+  useEffect(() => {
+    if (isRefreshing && !isLoading && phase !== 'idle') {
+      setIsRefreshing(false);
+    }
+  }, [isRefreshing, isLoading, phase]);
+
+  const refreshControl = (
+    <RefreshControl
+      refreshing={isRefreshing}
+      onRefresh={handleRefresh}
+      tintColor="#818cf8"
+    />
+  );
 
   const renderItem = useCallback(
     ({ item, index }: { item: SummaryItem; index: number }) => (
@@ -40,9 +71,6 @@ export default function SummaryScreen() {
     clearAll();
     console.log('[DEV] Summary + TTS audio cache cleared');
   }, [clearAll]);
-
-  const isLoading =
-    phase === 'checking' || phase === 'syncing' || phase === 'selecting';
 
   if (isLoading) {
     return (
@@ -62,7 +90,11 @@ export default function SummaryScreen() {
     return (
       <StyledSafeAreaView className="flex-1 bg-black" edges={['top']}>
         <SummaryHeader onClear={handleClearCache} />
-        <View className="flex-1 items-center justify-center gap-2">
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="flex-1 items-center justify-center gap-2"
+          refreshControl={refreshControl}
+        >
           <Icon
             name={isDone ? 'check' : 'exclamation'}
             size={32}
@@ -76,7 +108,7 @@ export default function SummaryScreen() {
               ? 'Unread inbox emails will appear here with AI summaries'
               : phaseDetail}
           </Text>
-        </View>
+        </ScrollView>
       </StyledSafeAreaView>
     );
   }
@@ -90,6 +122,7 @@ export default function SummaryScreen() {
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         contentContainerStyle={listContentStyle}
+        refreshControl={refreshControl}
         initialNumToRender={10}
         removeClippedSubviews
       />

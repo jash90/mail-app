@@ -7,7 +7,7 @@ import { syncLabelThreads } from '@/features/gmail/sync';
 import { getSummaryCache, summarizeEmail } from '@/features/ai/api';
 import { threadEvents } from '@/lib/threadEvents';
 import type { EmailThread } from '@/types';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 
 const SUMMARY_LIMIT = 20;
 
@@ -32,6 +32,7 @@ export function useSummaryPipeline(accountId: string, userEmail: string) {
   const [processed, setProcessed] = useState(0);
   const [phase, setPhase] = useState<PipelinePhase>('idle');
   const [phaseDetail, setPhaseDetail] = useState('');
+  const [runId, bumpRunId] = useReducer((n: number) => n + 1, 0);
   const cancelledRef = useRef(false);
   const retryAbortMapRef = useRef(new Map<string, AbortController>());
   const itemsRef = useRef<SummaryItem[]>([]);
@@ -275,7 +276,7 @@ export function useSummaryPipeline(accountId: string, userEmail: string) {
       for (const ctrl of retryAbortMap.values()) ctrl.abort();
       retryAbortMap.clear();
     };
-  }, [accountId, userEmail, updatePhase, loadReplacementThread]);
+  }, [accountId, userEmail, runId, updatePhase, loadReplacementThread]);
 
   const retrySummary = useCallback(
     async (_index: number, item: SummaryItem) => {
@@ -327,6 +328,15 @@ export function useSummaryPipeline(accountId: string, userEmail: string) {
     [],
   );
 
+  const restart = useCallback(() => {
+    setItems([]);
+    setProcessed(0);
+    updatePhase('idle');
+    setPhaseDetail('');
+    removedDuringRunRef.current.clear();
+    bumpRunId();
+  }, [updatePhase]);
+
   const clearAll = useCallback(() => {
     setItems([]);
     setProcessed(0);
@@ -341,6 +351,7 @@ export function useSummaryPipeline(accountId: string, userEmail: string) {
     phase,
     phaseDetail,
     retrySummary,
+    restart,
     clearAll,
   };
 }
