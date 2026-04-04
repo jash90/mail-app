@@ -1,5 +1,3 @@
-import { getActiveProviderName } from './providers';
-
 let aiActive = false;
 let networkActive = 0;
 
@@ -73,9 +71,13 @@ export async function acquireAI(signal?: AbortSignal): Promise<() => void> {
 export async function acquireNetwork(
   signal?: AbortSignal,
 ): Promise<() => void> {
-  // Only wait if local AI is active
-  if (aiActive && getActiveProviderName() === 'local') {
-    await waitInQueue(aiWaiters, signal);
+  // Only wait if local AI is active (lazy import to avoid llama.rn in Jest)
+  if (aiActive) {
+    const { getActiveProviderName } =
+      require('./providers') as typeof import('./providers');
+    if (getActiveProviderName() === 'local') {
+      await waitInQueue(aiWaiters, signal);
+    }
   }
 
   networkActive++;
