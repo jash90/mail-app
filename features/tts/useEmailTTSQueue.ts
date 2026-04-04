@@ -10,8 +10,18 @@ import { useTTSTracks } from './useTTSTracks';
  */
 export function useEmailTTSQueue(unreadThreads: EmailThread[]) {
   const { tracks, summarizing, maxThreads } = useTTSTracks(unreadThreads);
-  const { currentIndex, isPlaying, isLoading, error, play, pause, resume, stop, next, prev } =
-    useTTSPlayer(tracks);
+  const {
+    currentIndex,
+    isPlaying,
+    isLoading,
+    error,
+    play,
+    pause,
+    resume,
+    stop,
+    next,
+    prev,
+  } = useTTSPlayer(tracks);
 
   const state: TTSQueueState = useMemo(
     () => ({

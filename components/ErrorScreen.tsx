@@ -12,7 +12,11 @@ interface ErrorScreenProps {
 }
 
 /** Reusable error fallback screen with Sentry reporting. */
-export default function ErrorScreen({ error, retry, onDismiss }: ErrorScreenProps) {
+export default function ErrorScreen({
+  error,
+  retry,
+  onDismiss,
+}: ErrorScreenProps) {
   useEffect(() => {
     if (error) {
       Sentry.captureException(error);
@@ -47,7 +51,10 @@ export default function ErrorScreen({ error, retry, onDismiss }: ErrorScreenProp
           {getErrorMessage(error)}
         </Text>
         {showRetry && (
-          <Pressable onPress={retry} className="rounded-xl bg-white/10 px-6 py-3">
+          <Pressable
+            onPress={retry}
+            className="rounded-xl bg-white/10 px-6 py-3"
+          >
             <Text className="text-sm font-medium text-white">Try again</Text>
           </Pressable>
         )}

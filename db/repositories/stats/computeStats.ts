@@ -5,7 +5,12 @@ import type {
 } from '@/features/stats/types';
 import { and, eq, ne, sql } from 'drizzle-orm';
 import { db } from '../../client';
-import { messageRecipients, messages, participants, threads } from '../../schema';
+import {
+  messageRecipients,
+  messages,
+  participants,
+  threads,
+} from '../../schema';
 import { getTimeDistribution, buildContactStats } from './helpers';
 
 /** Compute full email statistics from SQLite — replaces StatsAccumulator. */

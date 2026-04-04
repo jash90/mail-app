@@ -1,4 +1,8 @@
-import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
+import {
+  useMutation,
+  useQueryClient,
+  type QueryKey,
+} from '@tanstack/react-query';
 import { gmailKeys } from '../queryKeys';
 import {
   markAsRead,
