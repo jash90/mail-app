@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ScrollView,
   Text,
@@ -43,13 +43,6 @@ export default function StatsScreen() {
       setIsRefreshing(false);
     }
   }, [accountId, refetch]);
-
-  useEffect(() => {
-    if (!accountId) return;
-    if (stats && !fullStats && !isLoadingFull && !error) {
-      fetchFull();
-    }
-  }, [accountId, stats, fullStats, isLoadingFull, error, fetchFull]);
 
   if (!displayStats) {
     return (

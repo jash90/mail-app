@@ -1,4 +1,5 @@
 import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
+import { DismissableErrorBoundary } from '@/components/DismissableErrorBoundary';
 import { db } from '@/db/client';
 import { participants } from '@/db/schema';
 import {
@@ -10,6 +11,8 @@ import Icon from '@expo/vector-icons/SimpleLineIcons';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
+
+export { DismissableErrorBoundary as ErrorBoundary };
 
 interface ContactTierRow extends ContactImportanceDetail {
   name: string | null;

@@ -17,8 +17,9 @@ import { PostHogProvider } from 'posthog-react-native';
 import { posthog } from '@/lib/posthog';
 import { Stack, useNavigationContainerRef } from 'expo-router';
 import { useEffect } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import 'react-native-reanimated';
+import Icon from '@expo/vector-icons/SimpleLineIcons';
 
 initSentry();
 
@@ -30,6 +31,59 @@ const centeredContainerStyle = {
   alignItems: 'center' as const,
   backgroundColor: '#000',
 };
+
+function RootErrorFallback({
+  resetError,
+}: {
+  error: unknown;
+  componentStack: string;
+  eventId: string;
+  resetError: () => void;
+}) {
+  return (
+    <View style={{ ...centeredContainerStyle, paddingHorizontal: 24, gap: 12 }}>
+      <View
+        style={{
+          backgroundColor: 'rgba(248,113,113,0.08)',
+          borderRadius: 999,
+          padding: 16,
+          marginBottom: 8,
+        }}
+      >
+        <Icon name="exclamation" size={32} color="#f87171" />
+      </View>
+      <Text style={{ color: '#f87171', fontSize: 18, fontWeight: '600' }}>
+        Something went wrong
+      </Text>
+      <Text
+        style={{
+          color: '#a1a1aa',
+          fontSize: 14,
+          textAlign: 'center',
+          lineHeight: 20,
+        }}
+      >
+        An unexpected error occurred. Try restarting the screen.
+      </Text>
+      <Pressable
+        onPress={resetError}
+        style={{
+          backgroundColor: 'rgba(255,255,255,0.1)',
+          borderRadius: 12,
+          paddingHorizontal: 24,
+          paddingVertical: 14,
+          marginTop: 8,
+          width: '100%',
+          alignItems: 'center',
+        }}
+      >
+        <Text style={{ color: '#fff', fontSize: 14, fontWeight: '500' }}>
+          Try again
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
 
 function RootLayout() {
   const ref = useNavigationContainerRef();
@@ -83,15 +137,7 @@ function RootLayout() {
   }
 
   return (
-    <Sentry.ErrorBoundary
-      fallback={
-        <View style={centeredContainerStyle}>
-          <Text style={{ color: '#f87171', fontSize: 16 }}>
-            Unexpected error occurred
-          </Text>
-        </View>
-      }
-    >
+    <Sentry.ErrorBoundary fallback={RootErrorFallback}>
       <PostHogProvider client={posthog}>
         <QueryClientProvider client={queryClient}>
           <Stack>

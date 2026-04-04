@@ -1,4 +1,5 @@
 import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
+import { DismissableErrorBoundary } from '@/components/DismissableErrorBoundary';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
 import { useRouter } from 'expo-router';
 import { useCallback } from 'react';
@@ -11,7 +12,10 @@ import {
   RecentList,
   formatNumber,
 } from '@/components/ai-tokens';
+
 import { useAITokenStats } from '@/features/ai/hooks/useAITokenStats';
+
+export { DismissableErrorBoundary as ErrorBoundary };
 
 export default function AITokensScreen() {
   const router = useRouter();

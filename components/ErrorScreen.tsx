@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
 import * as Sentry from '@sentry/react-native';
 import { useEffect } from 'react';
+import { useRouter } from 'expo-router';
 import { isAppError, getErrorMessage } from '@/lib/errors';
 
 interface ErrorScreenProps {
@@ -17,6 +18,8 @@ export default function ErrorScreen({
   retry,
   onDismiss,
 }: ErrorScreenProps) {
+  const router = useRouter();
+
   useEffect(() => {
     if (error) {
       Sentry.captureException(error);
@@ -26,6 +29,18 @@ export default function ErrorScreen({
   const appError = error && isAppError(error) ? error : null;
   const isWarning = appError?.meta.severity === 'warning';
   const showRetry = retry && (appError ? appError.retryable : true);
+
+  const iconName = isWarning ? 'info' : 'exclamation';
+  const accentColor = isWarning ? '#818cf8' : '#f87171';
+
+  const handleGoHome = () => {
+    try {
+      router.replace('/(tabs)/list');
+    } catch {
+      // Navigation may not be available at root level — retry is the only option
+      retry?.();
+    }
+  };
 
   return (
     <View className="flex-1 bg-black">
@@ -42,22 +57,42 @@ export default function ErrorScreen({
         </SafeAreaView>
       )}
       <View className="flex-1 items-center justify-center px-6">
+        <View
+          className="mb-5 items-center justify-center rounded-full p-4"
+          style={{ backgroundColor: `${accentColor}15` }}
+        >
+          <Icon name={iconName} size={32} color={accentColor} />
+        </View>
+
         <Text
           className={`mb-2 text-lg font-semibold ${isWarning ? 'text-indigo-400' : 'text-red-400'}`}
         >
-          Something went wrong
+          {isWarning ? 'Something needs attention' : 'Something went wrong'}
         </Text>
-        <Text className="mb-6 text-center text-sm text-gray-400">
+
+        <Text className="mb-8 text-center text-sm leading-5 text-zinc-400">
           {getErrorMessage(error)}
         </Text>
-        {showRetry && (
-          <Pressable
-            onPress={retry}
-            className="rounded-xl bg-white/10 px-6 py-3"
-          >
-            <Text className="text-sm font-medium text-white">Try again</Text>
-          </Pressable>
-        )}
+
+        <View className="w-full gap-3">
+          {showRetry && (
+            <Pressable
+              onPress={retry}
+              className="w-full items-center rounded-xl bg-white/10 py-3.5"
+            >
+              <Text className="text-sm font-medium text-white">Try again</Text>
+            </Pressable>
+          )}
+
+          {!onDismiss && (
+            <Pressable
+              onPress={handleGoHome}
+              className="w-full items-center rounded-xl py-3"
+            >
+              <Text className="text-sm text-zinc-500">Go to Inbox</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
     </View>
   );

@@ -17,6 +17,9 @@ import { useAICompose } from '@/features/ai/hooks/useAICompose';
 import { analytics } from '@/lib/analytics';
 import { useAuthStore } from '@/store/authStore';
 import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
+import { DismissableErrorBoundary } from '@/components/DismissableErrorBoundary';
+
+export { DismissableErrorBoundary as ErrorBoundary };
 
 const suggestionsListStyle = { maxHeight: 200 } as const;
 
