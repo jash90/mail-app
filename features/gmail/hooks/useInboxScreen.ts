@@ -1,4 +1,5 @@
 import { prefetchSummaries } from '@/features/ai/api';
+import { acquireNetwork } from '@/features/ai/resourceLock';
 import { useContactImportance } from './useSearchHooks';
 import { useLabels } from './useLabelsHook';
 import { useThreads } from './useThreadQueries';
@@ -11,7 +12,7 @@ import { useAuthStore } from '@/store/authStore';
 import type { EmailThread } from '@/types';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, InteractionManager } from 'react-native';
 
 export function useInboxScreen() {
   const router = useRouter();
@@ -47,21 +48,32 @@ export function useInboxScreen() {
     if (!accountId) return;
     let cancelled = false;
 
-    setIsSyncingLabel(true);
-    syncLabelThreads(accountId, [selectedLabel])
-      .then(() => {
-        if (!cancelled) refetch();
-      })
-      .catch((err) => {
-        if (!cancelled)
-          console.warn('[useInboxScreen] Label sync failed:', err);
-      })
-      .finally(() => {
-        if (!cancelled) setIsSyncingLabel(false);
-      });
+    const handle = InteractionManager.runAfterInteractions(() => {
+      setIsSyncingLabel(true);
+      acquireNetwork()
+        .then(async (releaseNetwork) => {
+          try {
+            await syncLabelThreads(accountId, [selectedLabel]);
+            if (!cancelled) refetch();
+          } catch (err) {
+            if (!cancelled)
+              console.warn('[useInboxScreen] Label sync failed:', err);
+          } finally {
+            releaseNetwork();
+            if (!cancelled) setIsSyncingLabel(false);
+          }
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            console.warn('[useInboxScreen] Label sync failed:', err);
+            setIsSyncingLabel(false);
+          }
+        });
+    });
 
     return () => {
       cancelled = true;
+      handle.cancel();
     };
   }, [accountId, selectedLabel, refetch]);
   const { data: importanceMap } = useContactImportance(accountId, userEmail);
@@ -81,13 +93,18 @@ export function useInboxScreen() {
     if (!accountId) return;
     setIsRefreshing(true);
     try {
-      // Always sync the current label from Gmail API
-      await syncLabelThreads(accountId, [selectedLabel]);
-      // Additionally run incremental sync for INBOX (new messages, label changes)
-      if (selectedLabel === 'INBOX') {
-        await triggerManualSync();
+      // Acquire network lock for sync operations (waits if local AI is active)
+      const releaseNetwork = await acquireNetwork();
+      try {
+        await syncLabelThreads(accountId, [selectedLabel]);
+        if (selectedLabel === 'INBOX') {
+          await triggerManualSync();
+        }
+      } finally {
+        releaseNetwork();
       }
       await refetch();
+      // prefetchSummaries handles its own AI lock internally
       if (selectedLabel === 'INBOX') {
         prefetchAbortRef.current?.abort();
         const controller = new AbortController();

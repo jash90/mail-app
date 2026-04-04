@@ -3,6 +3,7 @@ import { performIncrementalSync, performFullSync, syncNextPage } from './sync';
 import { getSyncState, upsertSyncState } from '@/db/repositories/syncState';
 import { rebuildFTSIndex } from '@/db/repositories/search';
 import { resetFTSVerification } from '@/features/search';
+import { acquireNetwork } from '@/features/ai/resourceLock';
 import { queryClient } from '@/lib/queryClient';
 import { gmailKeys } from './queryKeys';
 import { Sentry } from '@/lib/sentry';
@@ -43,6 +44,7 @@ async function runSyncCycle(): Promise<void> {
   const wasPaginating = status === 'paginating';
   status = 'syncing';
 
+  const releaseNetwork = await acquireNetwork();
   try {
     const state = getSyncState(accountId);
     const result = state?.history_id
@@ -77,6 +79,8 @@ async function runSyncCycle(): Promise<void> {
     status = wasPaginating ? 'paginating' : 'idle';
     // If was paginating, resume pagination
     if (wasPaginating) schedulePaginationStep();
+  } finally {
+    releaseNetwork();
   }
 }
 
@@ -84,6 +88,7 @@ async function runSyncCycle(): Promise<void> {
 async function paginationStep(): Promise<void> {
   if (!accountId || status !== 'paginating') return;
 
+  const releaseNetwork = await acquireNetwork();
   try {
     const result = await syncNextPage(accountId);
     upsertSyncState(accountId, result.new_sync_state);
@@ -124,6 +129,8 @@ async function paginationStep(): Promise<void> {
         invalidateCaches(true);
       }
     }
+  } finally {
+    releaseNetwork();
   }
 }
 
@@ -189,6 +196,7 @@ export function stopSyncManager(): void {
 /** Trigger an immediate sync (e.g. pull-to-refresh). Returns when done. */
 export async function triggerManualSync(): Promise<void> {
   if (status === 'syncing') return;
+  // runSyncCycle already acquires the network lock internally
   await runSyncCycle();
 }
 

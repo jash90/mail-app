@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { InteractionManager } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { gmailKeys } from '@/features/gmail/queryKeys';
+import { acquireNetwork } from '@/features/ai/resourceLock';
 import { useAuthStore } from '@/store/authStore';
 import type { EmailStats, StatsProgress } from './types';
 import { computeStatsFromDb } from '@/db/repositories/stats';
@@ -52,6 +54,7 @@ export function useEmailStats(accountId: string) {
     setError(null);
     setProgress({ phase: 'listing', loaded: 0, total: 0 });
 
+    const releaseNetwork = await acquireNetwork();
     try {
       const userEmail = user?.email ?? '';
       let batchCount = 0;
@@ -108,13 +111,17 @@ export function useEmailStats(accountId: string) {
       console.error('Failed to compute full stats:', e);
       setError(msg);
     } finally {
+      releaseNetwork();
       setIsLoadingFull(false);
       fetchingRef.current = false;
     }
   }, [accountId, user?.email, queryClient]);
 
   useEffect(() => {
-    computeDbStats();
+    const handle = InteractionManager.runAfterInteractions(() => {
+      computeDbStats();
+    });
+    return () => handle.cancel();
   }, [computeDbStats]);
 
   const refetch = useCallback(async () => {

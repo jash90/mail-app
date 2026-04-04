@@ -5,9 +5,13 @@ import {
 import { getInboxUnreadCount } from '@/features/gmail/labels';
 import { syncLabelThreads } from '@/features/gmail/sync';
 import { getSummaryCache, summarizeEmail } from '@/features/ai/api';
+import { getActiveProviderName } from '@/features/ai/providers';
+import { releaseLocalProvider } from '@/features/ai/providers/local';
+import { acquireAI } from '@/features/ai/resourceLock';
 import { threadEvents } from '@/lib/threadEvents';
 import type { EmailThread } from '@/types';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import { InteractionManager } from 'react-native';
 
 const SUMMARY_LIMIT = 20;
 
@@ -35,6 +39,7 @@ export function useSummaryPipeline(accountId: string, userEmail: string) {
   const [runId, bumpRunId] = useReducer((n: number) => n + 1, 0);
   const cancelledRef = useRef(false);
   const retryAbortMapRef = useRef(new Map<string, AbortController>());
+  const aiLockReleaseRef = useRef<(() => void) | null>(null);
   const itemsRef = useRef<SummaryItem[]>([]);
   const phaseRef = useRef<PipelinePhase>('idle');
   const removedDuringRunRef = useRef(new Set<string>());
@@ -131,150 +136,180 @@ export function useSummaryPipeline(accountId: string, userEmail: string) {
 
     const abortController = new AbortController();
 
-    (async () => {
-      try {
-        // Phase 1: Check server vs local unread count
-        updatePhase('checking');
-        setPhaseDetail('Checking for new emails…');
-
-        const localCount = getLocalUnreadInboxCount(accountId);
-        let serverCount: number | null = null;
+    const handle = InteractionManager.runAfterInteractions(() => {
+      (async () => {
         try {
-          serverCount = await getInboxUnreadCount();
-        } catch {
-          // API call failed — proceed with local data
-        }
-        if (cancelledRef.current) return;
+          // Phase 1: Check server vs local unread count
+          updatePhase('checking');
+          setPhaseDetail('Checking for new emails…');
 
-        // Phase 2: Sync if counts don't match
-        if (serverCount !== null && serverCount !== localCount) {
-          updatePhase('syncing');
-          const diff = serverCount - localCount;
-          setPhaseDetail(
-            diff > 0
-              ? `Downloading ${diff} new email${diff !== 1 ? 's' : ''}…`
-              : 'Syncing mailbox…',
-          );
+          const localCount = getLocalUnreadInboxCount(accountId);
+          let serverCount: number | null = null;
           try {
-            await syncLabelThreads(accountId, ['INBOX']);
+            serverCount = await getInboxUnreadCount();
           } catch {
-            // sync failed — proceed with local data
+            // API call failed — proceed with local data
           }
           if (cancelledRef.current) return;
-        }
 
-        // Phase 3: Select top threads by tier
-        updatePhase('selecting');
-        setPhaseDetail('Selecting most important emails…');
-
-        const threads = selectThreadsForSummary(
-          accountId,
-          userEmail,
-          SUMMARY_LIMIT,
-        );
-        if (cancelledRef.current) return;
-
-        if (threads.length === 0) {
-          setItems([]);
-          updatePhase('done');
-          setPhaseDetail('');
-          return;
-        }
-
-        // Phase 4: Build items with cached summaries, then generate missing ones
-        const initialItems: SummaryItem[] = threads.map((thread) => {
-          const cached = getSummaryCache(thread.id);
-          return {
-            thread,
-            summary: cached,
-            loading: !cached,
-            error: null,
-          };
-        });
-
-        const cachedCount = initialItems.filter((i) => i.summary).length;
-        setItems(initialItems);
-        setProcessed(cachedCount);
-
-        if (cachedCount === threads.length) {
-          updatePhase('done');
-          setPhaseDetail('');
-          return;
-        }
-
-        updatePhase('summarizing');
-        setPhaseDetail(`Summarizing ${cachedCount + 1} of ${threads.length}…`);
-
-        for (let i = 0; i < threads.length; i++) {
-          if (cancelledRef.current) break;
-          if (initialItems[i].summary) continue;
-          if (removedDuringRunRef.current.has(threads[i].id)) continue;
-
-          setPhaseDetail(`Summarizing ${i + 1} of ${threads.length}…`);
-
-          const t = threads[i];
-          try {
-            const summary = await summarizeEmail(
-              t.id,
-              t.subject,
-              t.snippet,
-              abortController.signal,
+          // Phase 2: Sync if counts don't match
+          if (serverCount !== null && serverCount !== localCount) {
+            updatePhase('syncing');
+            const diff = serverCount - localCount;
+            setPhaseDetail(
+              diff > 0
+                ? `Downloading ${diff} new email${diff !== 1 ? 's' : ''}…`
+                : 'Syncing mailbox…',
             );
-            if (cancelledRef.current) break;
-            setItems((prev) =>
-              prev.map((item) =>
-                item.thread.id === t.id
-                  ? { ...item, summary, loading: false }
-                  : item,
-              ),
-            );
-            setProcessed((prev) => prev + 1);
-          } catch (err) {
-            if (cancelledRef.current) break;
-            console.warn(
-              `[SummaryPipeline] Failed to summarize thread ${t.id}`,
-            );
-            setItems((prev) =>
-              prev.map((item) =>
-                item.thread.id === t.id
-                  ? {
-                      ...item,
-                      loading: false,
-                      error:
-                        err instanceof Error ? err.message : 'Unknown error',
-                    }
-                  : item,
-              ),
-            );
+            try {
+              await syncLabelThreads(accountId, ['INBOX']);
+            } catch {
+              // sync failed — proceed with local data
+            }
+            if (cancelledRef.current) return;
           }
-        }
 
-        if (!cancelledRef.current) {
-          updatePhase('done');
-          setPhaseDetail('');
+          // Phase 3: Select top threads by tier
+          updatePhase('selecting');
+          setPhaseDetail('Selecting most important emails…');
 
-          // Process any removals that occurred during summarizing
-          if (removedDuringRunRef.current.size > 0) {
-            removedDuringRunRef.current.clear();
-            loadReplacementThread();
-          }
-        }
-      } catch (err) {
-        if (!cancelledRef.current) {
-          updatePhase('error');
-          setPhaseDetail(
-            err instanceof Error ? err.message : 'Something went wrong',
+          const threads = selectThreadsForSummary(
+            accountId,
+            userEmail,
+            SUMMARY_LIMIT,
           );
+          if (cancelledRef.current) return;
+
+          if (threads.length === 0) {
+            setItems([]);
+            updatePhase('done');
+            setPhaseDetail('');
+            return;
+          }
+
+          // Phase 4: Build items with cached summaries, then generate missing ones
+          const initialItems: SummaryItem[] = threads.map((thread) => {
+            const cached = getSummaryCache(thread.id);
+            return {
+              thread,
+              summary: cached,
+              loading: !cached,
+              error: null,
+            };
+          });
+
+          const cachedCount = initialItems.filter((i) => i.summary).length;
+          setItems(initialItems);
+          setProcessed(cachedCount);
+
+          if (cachedCount === threads.length) {
+            updatePhase('done');
+            setPhaseDetail('');
+            return;
+          }
+
+          updatePhase('summarizing');
+          setPhaseDetail(
+            `Summarizing ${cachedCount + 1} of ${threads.length}…`,
+          );
+
+          // Acquire AI lock when using local provider to pause data fetching
+          const isLocal = getActiveProviderName() === 'local';
+          if (isLocal) {
+            const release = await acquireAI(abortController.signal);
+            aiLockReleaseRef.current = release;
+          }
+
+          try {
+            for (let i = 0; i < threads.length; i++) {
+              if (cancelledRef.current) break;
+              if (initialItems[i].summary) continue;
+              if (removedDuringRunRef.current.has(threads[i].id)) continue;
+
+              setPhaseDetail(`Summarizing ${i + 1} of ${threads.length}…`);
+
+              const t = threads[i];
+              try {
+                const summary = await summarizeEmail(
+                  t.id,
+                  t.subject,
+                  t.snippet,
+                  abortController.signal,
+                );
+                if (cancelledRef.current) break;
+                setItems((prev) =>
+                  prev.map((item) =>
+                    item.thread.id === t.id
+                      ? { ...item, summary, loading: false }
+                      : item,
+                  ),
+                );
+                setProcessed((prev) => prev + 1);
+              } catch (err) {
+                if (cancelledRef.current) break;
+                console.warn(
+                  `[SummaryPipeline] Failed to summarize thread ${t.id}`,
+                );
+                setItems((prev) =>
+                  prev.map((item) =>
+                    item.thread.id === t.id
+                      ? {
+                          ...item,
+                          loading: false,
+                          error:
+                            err instanceof Error
+                              ? err.message
+                              : 'Unknown error',
+                        }
+                      : item,
+                  ),
+                );
+              }
+            }
+          } finally {
+            // Release AI lock and free model RAM
+            if (aiLockReleaseRef.current) {
+              aiLockReleaseRef.current();
+              aiLockReleaseRef.current = null;
+            }
+            if (isLocal) {
+              releaseLocalProvider().catch(() => {});
+            }
+          }
+
+          if (!cancelledRef.current) {
+            updatePhase('done');
+            setPhaseDetail('');
+
+            // Process any removals that occurred during summarizing
+            if (removedDuringRunRef.current.size > 0) {
+              removedDuringRunRef.current.clear();
+              loadReplacementThread();
+            }
+          }
+        } catch (err) {
+          if (!cancelledRef.current) {
+            updatePhase('error');
+            setPhaseDetail(
+              err instanceof Error ? err.message : 'Something went wrong',
+            );
+          }
         }
-      }
-    })();
+      })();
+    });
 
     const retryAbortMap = retryAbortMapRef.current;
     return () => {
       cancelledRef.current = true;
+      handle.cancel();
       abortController.abort();
       for (const ctrl of retryAbortMap.values()) ctrl.abort();
       retryAbortMap.clear();
+      // Release AI lock if still held (e.g. component unmounted during inference)
+      if (aiLockReleaseRef.current) {
+        aiLockReleaseRef.current();
+        aiLockReleaseRef.current = null;
+      }
     };
   }, [accountId, userEmail, runId, updatePhase, loadReplacementThread]);
 

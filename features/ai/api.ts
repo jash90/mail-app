@@ -2,7 +2,9 @@ import { db } from '@/db/client';
 import { selectThreadsForSummary } from '@/db/repositories/threads';
 import { summaryCache } from '@/db/schema';
 import { and, eq, gt, inArray } from 'drizzle-orm';
-import { getProvider } from './providers';
+import { getProvider, getActiveProviderName } from './providers';
+import { releaseLocalProvider } from './providers/local';
+import { acquireAI } from './resourceLock';
 import type { ChatMessage, EmailContext } from './types';
 import { formatContext } from './types';
 
@@ -92,25 +94,39 @@ export async function prefetchSummaries(
   if (!userEmail) return;
 
   const threads = selectThreadsForSummary(accountId, userEmail, 20);
-  let consecutiveFailures = 0;
+  const isLocal = getActiveProviderName() === 'local';
 
-  for (const t of threads) {
-    if (signal?.aborted) return;
-    try {
-      await summarizeEmail(t.id, t.subject, t.snippet, signal);
-      consecutiveFailures = 0;
-    } catch (err) {
-      if (
-        signal?.aborted ||
-        (err instanceof Error && err.name === 'AbortError')
-      )
-        return;
-      console.warn(
-        `[prefetchSummaries] Failed thread ${t.id}:`,
-        err instanceof Error ? err.message : err,
-      );
-      consecutiveFailures++;
-      if (consecutiveFailures >= 3) return;
+  let releaseAILock: (() => void) | null = null;
+  if (isLocal) {
+    releaseAILock = await acquireAI(signal);
+  }
+
+  try {
+    let consecutiveFailures = 0;
+
+    for (const t of threads) {
+      if (signal?.aborted) return;
+      try {
+        await summarizeEmail(t.id, t.subject, t.snippet, signal);
+        consecutiveFailures = 0;
+      } catch (err) {
+        if (
+          signal?.aborted ||
+          (err instanceof Error && err.name === 'AbortError')
+        )
+          return;
+        console.warn(
+          `[prefetchSummaries] Failed thread ${t.id}:`,
+          err instanceof Error ? err.message : err,
+        );
+        consecutiveFailures++;
+        if (consecutiveFailures >= 3) return;
+      }
+    }
+  } finally {
+    releaseAILock?.();
+    if (isLocal) {
+      releaseLocalProvider().catch(() => {});
     }
   }
 }
