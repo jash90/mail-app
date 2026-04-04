@@ -104,6 +104,11 @@ function RootLayout() {
                 name="thread/[id]"
                 options={{ headerShown: false }}
               />
+              <Stack.Screen name="ai-tokens" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="contact-tiers"
+                options={{ headerShown: false }}
+              />
             </Stack.Protected>
           </Stack>
         </QueryClientProvider>

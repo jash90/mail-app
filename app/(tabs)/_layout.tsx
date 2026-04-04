@@ -1,6 +1,5 @@
 import Icon from '@expo/vector-icons/SimpleLineIcons';
 import { Tabs } from 'expo-router';
-import { TOKEN_TRACKING_ENABLED } from '@/features/ai/tokenTracker';
 
 export { default as ErrorBoundary } from '@/components/ErrorScreen';
 
@@ -45,16 +44,6 @@ export default function TabLayout() {
           title: 'Stats',
           tabBarIcon: ({ color, size }) => (
             <Icon name="chart" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="ai-tokens"
-        options={{
-          title: 'AI Tokens',
-          href: TOKEN_TRACKING_ENABLED ? '/(tabs)/ai-tokens' : null,
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="energy" size={size} color={color} />
           ),
         }}
       />

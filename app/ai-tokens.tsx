@@ -1,7 +1,8 @@
+import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
+import Icon from '@expo/vector-icons/SimpleLineIcons';
+import { useRouter } from 'expo-router';
 import { useCallback } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
-import Icon from '@expo/vector-icons/SimpleLineIcons';
-import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 import {
   TotalCard,
   ProviderSection,
@@ -13,6 +14,7 @@ import {
 import { useAITokenStats } from '@/features/ai/hooks/useAITokenStats';
 
 export default function AITokensScreen() {
+  const router = useRouter();
   const { stats, reset } = useAITokenStats();
 
   const handleReset = useCallback(() => {
@@ -33,7 +35,12 @@ export default function AITokensScreen() {
       <ScrollView className="flex-1 px-4">
         {/* Header */}
         <View className="flex-row items-center justify-between pt-2 pb-3">
-          <Text className="text-3xl font-bold text-white">AI Tokens</Text>
+          <View className="flex-row items-center gap-3">
+            <Pressable onPress={router.back} hitSlop={8}>
+              <Icon name="arrow-left" size={20} color="white" />
+            </Pressable>
+            <Text className="text-3xl font-bold text-white">AI Tokens</Text>
+          </View>
           {!isEmpty && (
             <Pressable
               className="rounded-lg bg-zinc-800 px-3 py-1.5"

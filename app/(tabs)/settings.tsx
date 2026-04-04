@@ -1,3 +1,19 @@
+import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
+import { LocalModelManager } from '@/features/ai/LocalModelManager';
+import { TOKEN_TRACKING_ENABLED } from '@/features/ai/tokenTracker';
+import { clearTokenCache } from '@/features/gmail';
+import { TTSService } from '@/features/tts';
+import { analytics } from '@/lib/analytics';
+import { clearAllData } from '@/db/client';
+import { queryClient } from '@/lib/queryClient';
+import { Sentry } from '@/lib/sentry';
+import {
+  resetTokens,
+  resetGoogleSignInConfig,
+} from '@/features/auth/oauthService';
+import { useAuthStore } from '@/store/authStore';
+import Icon from '@expo/vector-icons/SimpleLineIcons';
+import { useRouter } from 'expo-router';
 import {
   Alert,
   View,
@@ -6,20 +22,6 @@ import {
   Pressable,
   ScrollView,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useAuthStore } from '@/store/authStore';
-import {
-  resetTokens,
-  resetGoogleSignInConfig,
-} from '@/features/auth/oauthService';
-import { clearTokenCache } from '@/features/gmail';
-import { clearAllData } from '@/db/client';
-import { analytics } from '@/lib/analytics';
-import { Sentry } from '@/lib/sentry';
-import { TTSService } from '@/features/tts';
-import { LocalModelManager } from '@/features/ai/LocalModelManager';
-import { queryClient } from '@/lib/queryClient';
-import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -75,6 +77,32 @@ export default function SettingsScreen() {
         />
 
         <LocalModelManager />
+
+        <View className="mt-6 gap-1">
+          <Pressable
+            className="flex-row items-center justify-between rounded-xl bg-zinc-900 px-4 py-3.5"
+            onPress={() => router.push('/contact-tiers')}
+          >
+            <View className="flex-row items-center gap-3">
+              <Icon name="people" size={18} color="#a1a1aa" />
+              <Text className="text-base text-white">Contact Tiers</Text>
+            </View>
+            <Icon name="arrow-right" size={14} color="#52525b" />
+          </Pressable>
+
+          {TOKEN_TRACKING_ENABLED && (
+            <Pressable
+              className="flex-row items-center justify-between rounded-xl bg-zinc-900 px-4 py-3.5"
+              onPress={() => router.push('/ai-tokens')}
+            >
+              <View className="flex-row items-center gap-3">
+                <Icon name="energy" size={18} color="#a1a1aa" />
+                <Text className="text-base text-white">AI Token Usage</Text>
+              </View>
+              <Icon name="arrow-right" size={14} color="#52525b" />
+            </Pressable>
+          )}
+        </View>
       </ScrollView>
 
       <View className="gap-3 p-4">
