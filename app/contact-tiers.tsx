@@ -1,17 +1,18 @@
 import { StyledSafeAreaView } from '@/components/StyledSafeAreaView';
 import { db } from '@/db/client';
 import { participants } from '@/db/schema';
-import { getContactImportanceMap } from '@/db/repositories/stats/contactImportance';
+import {
+  getContactImportanceDetails,
+  type ContactImportanceDetail,
+} from '@/db/repositories/stats/contactImportance';
 import { useAuthStore } from '@/store/authStore';
 import Icon from '@expo/vector-icons/SimpleLineIcons';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
 
-interface ContactTier {
-  email: string;
+interface ContactTierRow extends ContactImportanceDetail {
   name: string | null;
-  tier: number;
 }
 
 const TIER_COLORS: Record<number, string> = {
@@ -30,7 +31,7 @@ const TIER_LABELS: Record<number, string> = {
   1: 'Minimal',
 };
 
-const keyExtractor = (item: ContactTier) => item.email;
+const keyExtractor = (item: ContactTierRow) => item.email;
 
 export default function ContactTiersScreen() {
   const router = useRouter();
@@ -41,47 +42,54 @@ export default function ContactTiersScreen() {
   const contacts = useMemo(() => {
     if (!accountId || !userEmail) return [];
 
-    const tierMap = getContactImportanceMap(accountId, userEmail);
-    if (tierMap.size === 0) return [];
+    const details = getContactImportanceDetails(accountId, userEmail);
+    if (details.length === 0) return [];
 
-    // Batch-fetch names for all emails
     const allParticipants = db.select().from(participants).all();
     const nameMap = new Map<string, string | null>();
     for (const p of allParticipants) {
       nameMap.set(p.email, p.name);
     }
 
-    const result: ContactTier[] = [];
-    for (const [email, tier] of tierMap) {
-      result.push({ email, name: nameMap.get(email) ?? null, tier });
-    }
+    const result: ContactTierRow[] = details.map((d) => ({
+      ...d,
+      name: nameMap.get(d.email) ?? null,
+    }));
 
-    // Sort: tier desc, then alphabetically by email
     result.sort((a, b) => b.tier - a.tier || a.email.localeCompare(b.email));
     return result;
   }, [accountId, userEmail]);
 
-  const renderItem = ({ item }: { item: ContactTier }) => (
-    <View className="flex-row items-center gap-3 px-4 py-3">
-      <View
-        className={`h-8 w-8 items-center justify-center rounded-full ${TIER_COLORS[item.tier]}`}
-      >
-        <Text className="text-xs font-bold text-white">{item.tier}</Text>
-      </View>
-      <View className="flex-1">
-        {item.name && (
-          <Text className="text-sm font-medium text-white" numberOfLines={1}>
-            {item.name}
-          </Text>
-        )}
-        <Text
-          className={`text-sm ${item.name ? 'text-zinc-400' : 'text-white'}`}
-          numberOfLines={1}
+  const renderItem = ({ item }: { item: ContactTierRow }) => (
+    <View className="gap-1 px-4 py-3">
+      <View className="flex-row items-center gap-3">
+        <View
+          className={`h-8 w-8 items-center justify-center rounded-full ${TIER_COLORS[item.tier]}`}
         >
-          {item.email}
-        </Text>
+          <Text className="text-xs font-bold text-white">{item.tier}</Text>
+        </View>
+        <View className="flex-1">
+          {item.name && (
+            <Text className="text-sm font-medium text-white" numberOfLines={1}>
+              {item.name}
+            </Text>
+          )}
+          <Text
+            className={`text-sm ${item.name ? 'text-zinc-400' : 'text-white'}`}
+            numberOfLines={1}
+          >
+            {item.email}
+          </Text>
+        </View>
+        <Text className="text-xs text-zinc-500">{TIER_LABELS[item.tier]}</Text>
       </View>
-      <Text className="text-xs text-zinc-500">{TIER_LABELS[item.tier]}</Text>
+
+      <View className="ml-11 flex-row flex-wrap items-center gap-x-3 gap-y-0.5">
+        <Text className="text-xs text-zinc-600">
+          {item.receivedCount} received · {item.sentCount} sent
+        </Text>
+        <Text className="text-xs text-zinc-500">{item.reason}</Text>
+      </View>
     </View>
   );
 
