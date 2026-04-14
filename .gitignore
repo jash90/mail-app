@@ -55,3 +55,6 @@ app-example
 # Test coverage
 coverage/
 fastlane/report.xml
+
+# Personal agent preferences
+AGENTS.local.md
