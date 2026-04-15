@@ -3,13 +3,21 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface GenerateOptions {
+  signal?: AbortSignal;
+  operation?: import('./services/tokenTracker').AiOperation;
+  /**
+   * Structured email context. Used by the anonymization layer to seed role
+   * tags (`<RECIPIENT>`, `<SENDER>`) so the cloud model never sees real
+   * names for the known-structured fields. Ignored by providers that don't
+   * run anonymization (local, raw cloud).
+   */
+  ctx?: EmailContext;
+}
+
 export interface AiProvider {
   name: 'cloud' | 'local';
-  generate(
-    messages: ChatMessage[],
-    signal?: AbortSignal,
-    operation?: import('./services/tokenTracker').AiOperation,
-  ): Promise<string>;
+  generate(messages: ChatMessage[], options?: GenerateOptions): Promise<string>;
 }
 
 export interface LocalModel {
@@ -41,6 +49,25 @@ export const LOCAL_MODELS: LocalModel[] = [
     filename: 'Qwen3-4B-Q4_K_M.gguf',
     url: 'https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf',
     sizeMB: 2500,
+  },
+  // PII detection model used by the anonymization pipeline before cloud AI
+  // calls. Not user-selectable as a chat model — managed separately via
+  // features/ai/anonymization/nerContext.ts.
+  {
+    id: 'ner-qwen2.5-0.5b',
+    label: 'PII Detector (650 MB)',
+    filename: 'qwen2.5-0.5b-instruct-q8_0.gguf',
+    url: 'https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q8_0.gguf',
+    sizeMB: 650,
+  },
+  // Polish NER BERT token classifier (HerBERT base fine-tuned on WikiANN +
+  // KPWr). Runs in parallel with the Bielik LLM layer.
+  {
+    id: 'ner-herbert-onnx',
+    label: 'HerBERT NER (PL, ~110 MB)',
+    filename: 'herbert-base-ner-int8.onnx',
+    url: 'https://TODO-cdn-host/herbert-base-ner-int8.onnx',
+    sizeMB: 110,
   },
 ];
 

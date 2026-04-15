@@ -84,7 +84,11 @@ export type AIProviderErrorCode =
   | 'MODEL_NOT_FOUND'
   | 'MODEL_LOAD_FAILED'
   | 'EMPTY_RESPONSE'
-  | 'ABORTED';
+  | 'ABORTED'
+  | 'ANONYMIZATION_LEAK'
+  | 'ANONYMIZATION_MODEL_MISSING'
+  | 'ANONYMIZATION_SENSITIVE_TOPIC'
+  | 'ANONYMIZATION_UNSUPPORTED_LANGUAGE';
 
 export class AIProviderError extends AppError {
   readonly domain = 'ai' as const;

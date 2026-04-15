@@ -9,6 +9,11 @@ import {
   getActiveProviderName,
   releaseLocalProvider,
 } from '../providers';
+import {
+  anonymizePayloadForCloud,
+  cloudSendAnonymized,
+} from '../providers/anonymizingCloud';
+import { isNerModelReady } from '../anonymization/nerContext';
 import { acquireAI } from '@/src/shared/services/resourceLock';
 import type { ChatMessage, EmailContext } from '../types';
 import { formatContext } from '../types';
@@ -28,9 +33,26 @@ const SYSTEM_PROMPT = `You are an AI email assistant. Write professional, concis
 - Use line breaks between sections for readability
 - Keep paragraphs short (2-3 sentences max)`;
 
+const SUMMARY_SYSTEM_PROMPT =
+  'Summarize the email in max 500 characters. If the email is in Polish, summarize in Polish. Otherwise summarize in English. Be concise and informative.';
+
 export const getSummaryCache = getCache;
 export const getSummaryCacheBatch = getCacheBatch;
 const setSummaryCache = setCache;
+
+function buildSummaryMessages(subject: string, snippet: string): ChatMessage[] {
+  const userMsg = [
+    subject ? `Subject: ${subject}` : '',
+    snippet ? `Content: ${snippet}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  return [
+    { role: 'system', content: SUMMARY_SYSTEM_PROMPT },
+    { role: 'user', content: userMsg },
+  ];
+}
 
 export async function summarizeEmail(
   threadId: string,
@@ -41,28 +63,39 @@ export async function summarizeEmail(
   const cached = getSummaryCache(threadId);
   if (cached) return cached;
 
-  const userMsg = [
-    subject ? `Subject: ${subject}` : '',
-    snippet ? `Content: ${snippet}` : '',
-  ]
-    .filter(Boolean)
-    .join('\n');
-
-  const messages: ChatMessage[] = [
-    {
-      role: 'system',
-      content:
-        'Summarize the email in max 500 characters. If the email is in Polish, summarize in Polish. Otherwise summarize in English. Be concise and informative.',
-    },
-    { role: 'user', content: userMsg },
-  ];
-
-  const summary = await getProvider().generate(messages, signal, 'summary');
+  const summary = await getProvider().generate(
+    buildSummaryMessages(subject, snippet),
+    { signal, operation: 'summary' },
+  );
 
   setSummaryCache(threadId, summary);
   return summary;
 }
 
+interface SummaryThread {
+  id: string;
+  subject: string;
+  snippet: string;
+}
+
+/**
+ * Prefetch summaries for the latest N threads.
+ *
+ * Three code paths depending on provider and NER model availability:
+ *
+ *   - **Local provider**: one `acquireAI` hold across all N summarizations
+ *     (llama.rn chat model stays loaded).
+ *
+ *   - **Cloud provider + NER model installed**: two-phase batch.
+ *     Phase 1 holds the AI lock, anonymizes all N payloads under a single
+ *     NER model load. Phase 2 releases the AI lock and fires the cloud
+ *     calls with pre-anonymized payloads, then caches the de-anonymized
+ *     summaries. Amortizes the NER cold start over the whole batch.
+ *
+ *   - **Cloud provider + NER model missing**: fall through to per-thread
+ *     `summarizeEmail`, which surfaces `ANONYMIZATION_MODEL_MISSING` via
+ *     the existing failure counter.
+ */
 export async function prefetchSummaries(
   accountId: string,
   signal?: AbortSignal,
@@ -71,39 +104,137 @@ export async function prefetchSummaries(
   if (!userEmail) return;
 
   const threads = selectThreadsForSummary(accountId, userEmail, 20);
-  const isLocal = getActiveProviderName() === 'local';
+  if (threads.length === 0) return;
 
-  let releaseAILock: (() => void) | null = null;
-  if (isLocal) {
-    releaseAILock = await acquireAI(signal);
+  if (getActiveProviderName() === 'local') {
+    return prefetchLocalBatch(threads, signal);
   }
 
-  try {
-    let consecutiveFailures = 0;
+  if (isNerModelReady()) {
+    return prefetchCloudAnonymizedBatch(threads, signal);
+  }
 
-    for (const t of threads) {
+  // Cloud selected but NER model is missing — per-thread fallback so the
+  // first failure short-circuits cleanly via the existing retry counter.
+  return prefetchSequential(threads, signal);
+}
+
+async function prefetchLocalBatch(
+  threads: SummaryThread[],
+  signal?: AbortSignal,
+): Promise<void> {
+  const releaseAILock = await acquireAI(signal);
+  try {
+    await prefetchSequential(threads, signal);
+  } finally {
+    releaseAILock();
+    releaseLocalProvider().catch(() => {});
+  }
+}
+
+async function prefetchSequential(
+  threads: SummaryThread[],
+  signal?: AbortSignal,
+): Promise<void> {
+  let consecutiveFailures = 0;
+  for (const t of threads) {
+    if (signal?.aborted) return;
+    try {
+      await summarizeEmail(t.id, t.subject, t.snippet, signal);
+      consecutiveFailures = 0;
+    } catch (err) {
+      if (
+        signal?.aborted ||
+        (err instanceof Error && err.name === 'AbortError')
+      ) {
+        return;
+      }
+      console.warn(
+        `[prefetchSummaries] Failed thread ${t.id}:`,
+        err instanceof Error ? err.message : err,
+      );
+      consecutiveFailures++;
+      if (consecutiveFailures >= 3) return;
+    }
+  }
+}
+
+/**
+ * Two-phase cloud batch prefetch. Phase 1 anonymizes all payloads under
+ * the AI lock (one NER model load for the whole batch). Phase 2 fires
+ * cloud calls with the pre-anonymized payloads.
+ */
+async function prefetchCloudAnonymizedBatch(
+  threads: SummaryThread[],
+  signal?: AbortSignal,
+): Promise<void> {
+  interface PendingCall {
+    threadId: string;
+    anonMessages: ChatMessage[];
+    map: import('../anonymization').PlaceholderMap;
+  }
+
+  const toProcess = threads.filter((t) => !getSummaryCache(t.id));
+  if (toProcess.length === 0) return;
+
+  // Phase 1: anonymize all pending threads under the AI lock.
+  const releaseAI = await acquireAI(signal);
+  const pending: PendingCall[] = [];
+  try {
+    for (const t of toProcess) {
       if (signal?.aborted) return;
+      const messages = buildSummaryMessages(t.subject, t.snippet);
       try {
-        await summarizeEmail(t.id, t.subject, t.snippet, signal);
-        consecutiveFailures = 0;
+        const payload = await anonymizePayloadForCloud(messages, {
+          signal,
+          operation: 'summary',
+        });
+        pending.push({
+          threadId: t.id,
+          anonMessages: payload.anonMessages,
+          map: payload.map,
+        });
       } catch (err) {
         if (
           signal?.aborted ||
           (err instanceof Error && err.name === 'AbortError')
-        )
+        ) {
           return;
+        }
         console.warn(
-          `[prefetchSummaries] Failed thread ${t.id}:`,
+          `[prefetchSummaries] anonymize failed for ${t.id}:`,
           err instanceof Error ? err.message : err,
         );
-        consecutiveFailures++;
-        if (consecutiveFailures >= 3) return;
       }
     }
   } finally {
-    releaseAILock?.();
-    if (isLocal) {
-      releaseLocalProvider().catch(() => {});
+    releaseAI();
+  }
+
+  // Phase 2: cloud calls with pre-anonymized payloads.
+  let consecutiveFailures = 0;
+  for (const call of pending) {
+    if (signal?.aborted) return;
+    try {
+      const summary = await cloudSendAnonymized(
+        { anonMessages: call.anonMessages, map: call.map },
+        { signal, operation: 'summary' },
+      );
+      setSummaryCache(call.threadId, summary);
+      consecutiveFailures = 0;
+    } catch (err) {
+      if (
+        signal?.aborted ||
+        (err instanceof Error && err.name === 'AbortError')
+      ) {
+        return;
+      }
+      console.warn(
+        `[prefetchSummaries] cloud call failed for ${call.threadId}:`,
+        err instanceof Error ? err.message : err,
+      );
+      consecutiveFailures++;
+      if (consecutiveFailures >= 3) return;
     }
   }
 }
@@ -129,8 +260,7 @@ export async function generateEmail(
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: userMsg },
     ],
-    signal,
-    'compose',
+    { signal, operation: 'compose', ctx: { from, user } },
   );
 }
 
@@ -159,7 +289,6 @@ export async function generateReply(
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: userMsg },
     ],
-    signal,
-    'reply',
+    { signal, operation: 'reply', ctx: { from, user } },
   );
 }

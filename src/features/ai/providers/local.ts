@@ -1,11 +1,10 @@
 import { initLlama, releaseAllLlama, type LlamaContext } from 'llama.rn';
 import { getModelFilePath } from '../services/modelDownloader';
-import type { AiProvider, ChatMessage } from '../types';
+import type { AiProvider, ChatMessage, GenerateOptions } from '../types';
 import {
   TOKEN_TRACKING_ENABLED,
   recordTokenUsage,
   estimateTokens,
-  type AiOperation,
 } from '../services/tokenTracker';
 
 let cachedContext: LlamaContext | null = null;
@@ -39,9 +38,10 @@ export function createLocalProvider(modelId: string): AiProvider {
 
     async generate(
       messages: ChatMessage[],
-      signal?: AbortSignal,
-      operation?: AiOperation,
+      options?: GenerateOptions,
     ): Promise<string> {
+      const signal = options?.signal;
+      const operation = options?.operation;
       const context = await getContext(modelId);
 
       const oaiMessages = messages.map((m) => ({

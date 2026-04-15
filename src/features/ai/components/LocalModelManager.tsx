@@ -2,9 +2,14 @@ import { Alert, Pressable, Text, View } from 'react-native';
 import { LOCAL_MODELS } from '@/src/features/ai/types';
 import { ModelCard } from './ModelCard';
 import { useLocalModels } from '@/src/features/ai/hooks/useLocalModels';
+import { NER_MODEL_ID } from '@/src/features/ai/anonymization/ner';
 
 const LOCAL_MODELS_ENABLED =
   process.env.EXPO_PUBLIC_LOCAL_MODELS_ENABLED === 'true';
+
+// The NER model has its own Settings section (PrivacySection) and must not
+// appear in the chat model picker.
+const CHAT_MODELS = LOCAL_MODELS.filter((m) => m.id !== NER_MODEL_ID);
 
 export function LocalModelManager() {
   const {
@@ -61,7 +66,7 @@ export function LocalModelManager() {
         Dotknij aby pobrać i aktywować. Przytrzymaj aby usunąć.
       </Text>
 
-      {LOCAL_MODELS.map((model) => (
+      {CHAT_MODELS.map((model) => (
         <ModelCard
           key={model.id}
           model={model}

@@ -27,6 +27,58 @@ jest.mock('react-native-reanimated', () => ({
   withRepeat: jest.fn(),
 }));
 
+// franc-min is pure ESM; Jest cannot parse its `import` syntax natively.
+jest.mock('franc-min', () => ({
+  franc: jest.fn((text: string) => {
+    if (!text || text.length < 20) return 'und';
+    if (/[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/.test(text)) return 'pol';
+    return 'eng';
+  }),
+  francAll: jest.fn((text: string) => {
+    if (!text || text.length < 20) return [['und', 1]];
+    if (/[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/.test(text)) {
+      return [
+        ['pol', 0.95],
+        ['ces', 0.5],
+      ];
+    }
+    return [
+      ['eng', 0.9],
+      ['deu', 0.3],
+    ];
+  }),
+}));
+
+// onnxruntime-react-native is a native module not installed in the Jest
+// environment. Stub it so modules that import it can resolve.
+jest.mock(
+  'onnxruntime-react-native',
+  () => {
+    class MockTensor {
+      readonly type: string;
+      readonly data: unknown;
+      readonly dims: readonly number[];
+      constructor(type: string, data: unknown, dims: readonly number[]) {
+        this.type = type;
+        this.data = data;
+        this.dims = dims;
+      }
+    }
+    return {
+      InferenceSession: {
+        create: jest.fn(async () => ({
+          run: jest.fn(async () => ({})),
+          release: jest.fn(async () => undefined),
+          inputNames: ['input_ids', 'attention_mask', 'token_type_ids'],
+          outputNames: ['logits'],
+        })),
+      },
+      Tensor: MockTensor,
+    };
+  },
+  { virtual: true },
+);
+
 jest.mock('@/src/shared/services/sentry', () => ({
   Sentry: {
     captureException: jest.fn(),

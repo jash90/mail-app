@@ -1,7 +1,7 @@
 export const TOKEN_TRACKING_ENABLED =
   process.env.EXPO_PUBLIC_AI_TOKEN_TRACKING === 'true';
 
-export type AiOperation = 'compose' | 'reply' | 'summary' | 'rerank';
+export type AiOperation = 'compose' | 'reply' | 'summary' | 'rerank' | 'ner';
 
 export interface TokenUsageEntry {
   provider: string;

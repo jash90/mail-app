@@ -8,6 +8,12 @@ import {
 } from '../services/modelDownloader';
 import { releaseLocalProvider } from '../providers/local';
 import { LOCAL_MODELS } from '../types';
+import { NER_MODEL_ID } from '../anonymization/ner';
+
+// Chat-model picker operates on everything EXCEPT the NER model — the NER
+// model has its own lifecycle managed by `usePrivacyModel` in the Privacy
+// settings section.
+const CHAT_MODELS = LOCAL_MODELS.filter((m) => m.id !== NER_MODEL_ID);
 
 export function useLocalModels() {
   const aiProvider = useAiSettingsStore((s) => s.aiProvider);
@@ -21,7 +27,7 @@ export function useLocalModels() {
   const mountedRef = useRef(true);
 
   const refresh = useCallback(() => {
-    const ids = LOCAL_MODELS.filter((m) => isModelDownloaded(m.id)).map(
+    const ids = CHAT_MODELS.filter((m) => isModelDownloaded(m.id)).map(
       (m) => m.id,
     );
     if (!mountedRef.current) return;
@@ -76,7 +82,7 @@ export function useLocalModels() {
 
   const removeModel = useCallback(
     (id: string) => {
-      const model = LOCAL_MODELS.find((m) => m.id === id);
+      const model = CHAT_MODELS.find((m) => m.id === id);
       if (!model) return;
 
       if (id === localModelId && aiProvider === 'local') {

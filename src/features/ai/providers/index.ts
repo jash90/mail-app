@@ -1,6 +1,6 @@
 import { useAiSettingsStore } from '@/src/shared/store/aiSettingsStore';
 import type { AiProvider } from '../types';
-import { cloudProvider } from './cloud';
+import { anonymizingCloudProvider } from './anonymizingCloud';
 import { createLocalProvider, releaseLocalProvider } from './local';
 
 const LOCAL_MODELS_ENABLED =
@@ -13,7 +13,10 @@ export function getProvider(): AiProvider {
     return createLocalProvider(localModelId);
   }
 
-  return cloudProvider;
+  // Cloud path always goes through the anonymization wrapper — every
+  // outgoing payload is regex-stripped + quote-stripped + NER'd, and the
+  // post-pipeline re-scan hard-fails any structured PII leak.
+  return anonymizingCloudProvider;
 }
 
 export function getActiveProviderName(): 'cloud' | 'local' {

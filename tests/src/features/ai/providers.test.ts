@@ -1,13 +1,13 @@
+// ── Mocks ─────────────────────────────────────────────────────────────
+
+jest.mock('@/src/features/ai/providers/anonymizingCloud', () => ({
+  anonymizingCloudProvider: { name: 'cloud', generate: jest.fn() },
+}));
+
 import {
   getProvider,
   getActiveProviderName,
 } from '@/src/features/ai/providers';
-
-// ── Mocks ─────────────────────────────────────────────────────────────
-
-jest.mock('@/src/features/ai/providers/cloud', () => ({
-  cloudProvider: { name: 'cloud', generate: jest.fn() },
-}));
 
 jest.mock('@/src/features/ai/providers/local', () => ({
   createLocalProvider: jest.fn((modelId: string) => ({

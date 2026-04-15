@@ -1,5 +1,6 @@
 import { StyledSafeAreaView } from '@/src/shared/components/StyledSafeAreaView';
 import { LocalModelManager, TOKEN_TRACKING_ENABLED } from '@/src/features/ai';
+import { PrivacySection } from '@/src/features/ai/anonymization/PrivacySection';
 import { clearTokenCache } from '@/src/features/gmail';
 import { TTSService } from '@/src/features/tts';
 import { analytics } from '@/src/shared/services/analytics';
@@ -103,6 +104,8 @@ export default function SettingsScreen() {
         />
 
         <LocalModelManager />
+
+        <PrivacySection />
 
         <View className="mt-6 gap-1">
           <Pressable
