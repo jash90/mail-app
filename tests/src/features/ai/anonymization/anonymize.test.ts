@@ -13,12 +13,12 @@ describe('anonymizeMessages', () => {
     ];
 
     const { anonMessages } = await anonymizeMessages(messages);
-    expect(anonMessages[0]).toEqual({
+    expect(anonMessages[0]!).toEqual({
       role: 'system',
       content: 'You are a helpful assistant.',
     });
-    expect(anonMessages[1].content).not.toContain('alice@example.com');
-    expect(anonMessages[1].content).toContain('<EMAIL_1>');
+    expect(anonMessages[1]!.content).not.toContain('alice@example.com');
+    expect(anonMessages[1]!.content).toContain('<EMAIL_1>');
   });
 
   it('strips quoted history before regex detection', async () => {
@@ -37,9 +37,9 @@ describe('anonymizeMessages', () => {
 
     const { anonMessages } = await anonymizeMessages(messages);
     // Quoted content is gone entirely — the regex doesn't even see it.
-    expect(anonMessages[0].content).toContain('Thanks, will review');
-    expect(anonMessages[0].content).not.toContain('alice@acme.com');
-    expect(anonMessages[0].content).not.toContain('44051401458');
+    expect(anonMessages[0]!.content).toContain('Thanks, will review');
+    expect(anonMessages[0]!.content).not.toContain('alice@acme.com');
+    expect(anonMessages[0]!.content).not.toContain('44051401458');
   });
 
   it('reuses the same placeholder across multiple messages', async () => {
@@ -50,8 +50,8 @@ describe('anonymizeMessages', () => {
 
     const { anonMessages, map } = await anonymizeMessages(messages);
     expect(map.size).toBe(1);
-    expect(anonMessages[0].content).toContain('<EMAIL_1>');
-    expect(anonMessages[1].content).toContain('<EMAIL_1>');
+    expect(anonMessages[0]!.content).toContain('<EMAIL_1>');
+    expect(anonMessages[1]!.content).toContain('<EMAIL_1>');
   });
 
   it('seeds role tags from EmailContext so names in the body collapse', async () => {
@@ -70,10 +70,10 @@ describe('anonymizeMessages', () => {
 
     const { anonMessages, map } = await anonymizeMessages(messages, { ctx });
 
-    expect(anonMessages[0].content).not.toContain('John Doe');
-    expect(anonMessages[0].content).not.toContain('Kasia Nowak');
-    expect(anonMessages[0].content).toContain('<RECIPIENT_');
-    expect(anonMessages[0].content).toContain('<SENDER_');
+    expect(anonMessages[0]!.content).not.toContain('John Doe');
+    expect(anonMessages[0]!.content).not.toContain('Kasia Nowak');
+    expect(anonMessages[0]!.content).toContain('<RECIPIENT_');
+    expect(anonMessages[0]!.content).toContain('<SENDER_');
 
     // Map has recipient + sender seeded
     expect(map.size).toBeGreaterThanOrEqual(2);
@@ -124,10 +124,10 @@ describe('anonymizeMessages', () => {
     });
 
     expect(runNerInference).toHaveBeenCalledTimes(1);
-    expect(anonMessages[0].content).not.toContain('Jan Kowalski');
-    expect(anonMessages[0].content).not.toContain('Gdańska');
-    expect(anonMessages[0].content).toContain('<NAME_1>');
-    expect(anonMessages[0].content).toContain('<PLACE_1>');
+    expect(anonMessages[0]!.content).not.toContain('Jan Kowalski');
+    expect(anonMessages[0]!.content).not.toContain('Gdańska');
+    expect(anonMessages[0]!.content).toContain('<NAME_1>');
+    expect(anonMessages[0]!.content).toContain('<PLACE_1>');
   });
 
   it('skips NER when runNerInference is omitted', async () => {
@@ -137,7 +137,7 @@ describe('anonymizeMessages', () => {
 
     // Regex-only mode: prose names are NOT stripped (NER disabled)
     const { anonMessages } = await anonymizeMessages(messages);
-    expect(anonMessages[0].content).toContain('Jan Kowalski');
+    expect(anonMessages[0]!.content).toContain('Jan Kowalski');
   });
 });
 

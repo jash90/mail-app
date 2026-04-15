@@ -14,10 +14,10 @@ export function isValidPESEL(pesel: string): boolean {
   const weights = [1, 3, 7, 9, 1, 3, 7, 9, 1, 3];
   let sum = 0;
   for (let i = 0; i < 10; i++) {
-    sum += Number(pesel[i]) * weights[i];
+    sum += Number(pesel[i]!) * weights[i]!;
   }
   const control = (10 - (sum % 10)) % 10;
-  return control === Number(pesel[10]);
+  return control === Number(pesel[10]!);
 }
 
 /**
@@ -30,10 +30,10 @@ export function isValidNIP(nip: string): boolean {
   const weights = [6, 5, 7, 2, 3, 4, 5, 6, 7];
   let sum = 0;
   for (let i = 0; i < 9; i++) {
-    sum += Number(digits[i]) * weights[i];
+    sum += Number(digits[i]!) * weights[i]!;
   }
   const control = sum % 11;
-  return control < 10 && control === Number(digits[9]);
+  return control < 10 && control === Number(digits[9]!);
 }
 
 /**
@@ -67,7 +67,7 @@ export function isValidLuhn(digits: string): boolean {
   let sum = 0;
   let shouldDouble = false;
   for (let i = cleaned.length - 1; i >= 0; i--) {
-    let d = Number(cleaned[i]);
+    let d = Number(cleaned[i]!);
     if (shouldDouble) {
       d *= 2;
       if (d > 9) d -= 9;
@@ -96,11 +96,11 @@ export function isValidREGON(regon: string): boolean {
 
   let sum = 0;
   for (let i = 0; i < weights.length; i++) {
-    sum += digits[i] * weights[i];
+    sum += digits[i]! * weights[i]!;
   }
   let control = sum % 11;
   if (control === 10) control = 0;
-  return control === digits[digits.length - 1];
+  return control === digits[digits.length - 1]!;
 }
 
 /**
@@ -136,10 +136,10 @@ export function isValidDowodOsobisty(id: string): boolean {
   let sum = 0;
   for (const idxStr of Object.keys(weights)) {
     const i = Number(idxStr);
-    sum += values[i] * weights[i];
+    sum += values[i]! * weights[i]!;
   }
   const control = sum % 10;
-  return control === values[3];
+  return control === values[3]!;
 }
 
 /**
@@ -248,15 +248,19 @@ export function isValidDate(date: string): boolean {
   const isoMatch = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (isoMatch) {
     return rangesOK(
-      Number(isoMatch[1]),
-      Number(isoMatch[2]),
-      Number(isoMatch[3]),
+      Number(isoMatch[1]!),
+      Number(isoMatch[2]!),
+      Number(isoMatch[3]!),
     );
   }
   // PL: DD.MM.YYYY or DD/MM/YYYY or DD-MM-YYYY
   const plMatch = date.match(/^(\d{2})[./-](\d{2})[./-](\d{4})$/);
   if (plMatch) {
-    return rangesOK(Number(plMatch[3]), Number(plMatch[2]), Number(plMatch[1]));
+    return rangesOK(
+      Number(plMatch[3]!),
+      Number(plMatch[2]!),
+      Number(plMatch[1]!),
+    );
   }
   return false;
 }
@@ -274,8 +278,8 @@ function rangesOK(year: number, month: number, day: number): boolean {
 export function isValidGPS(coords: string): boolean {
   const m = coords.match(/^(-?\d{1,3}\.\d{4,}),\s*(-?\d{1,3}\.\d{4,})$/);
   if (!m) return false;
-  const lat = Number(m[1]);
-  const lng = Number(m[2]);
+  const lat = Number(m[1]!);
+  const lng = Number(m[2]!);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
   if (lat < -90 || lat > 90) return false;
   if (lng < -180 || lng > 180) return false;

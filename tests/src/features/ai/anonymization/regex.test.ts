@@ -366,7 +366,7 @@ describe('detectRegex', () => {
     const entities = detectRegex('Zadzwoń: +48 600 700 800');
     const phones = entities.filter((e) => e.type === 'PHONE');
     expect(phones.length).toBeGreaterThan(0);
-    expect(phones[0].value).toContain('600');
+    expect(phones[0]!.value).toContain('600');
   });
 
   it('detects a bare 9-digit Polish phone', () => {
@@ -482,7 +482,7 @@ describe('regexScan', () => {
     const anonymized = 'Contact <NAME_1> at real@leak.com today.';
     const leaks = regexScan(anonymized);
     expect(leaks.length).toBe(1);
-    expect(leaks[0]).toEqual(
+    expect(leaks[0]!).toEqual(
       expect.objectContaining({ type: 'EMAIL', value: 'real@leak.com' }),
     );
   });

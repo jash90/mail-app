@@ -50,8 +50,8 @@ export function decodeBioTags(input: DecodeBioInput): BertEntity[] {
   let current: MutableEntity | null = null;
 
   for (let i = 0; i < tokenTags.length; i++) {
-    const tag = tokenTags[i];
-    const offset = tokenOffsets[i];
+    const tag = tokenTags[i]!;
+    const offset = tokenOffsets[i]!;
 
     // Skip degenerate spans (CLS / SEP / PAD positions produced by the
     // tokenizer) regardless of tag — they never correspond to source text.
@@ -116,7 +116,7 @@ export function decodeBioTags(input: DecodeBioInput): BertEntity[] {
 export function createBioLabelMap(ordering: readonly BioTag[]): BioLabelMap {
   const map = new Map<number, BioTag>();
   for (let i = 0; i < ordering.length; i++) {
-    map.set(i, ordering[i]);
+    map.set(i, ordering[i]!);
   }
   return map;
 }

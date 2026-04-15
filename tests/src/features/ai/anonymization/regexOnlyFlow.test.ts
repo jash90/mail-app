@@ -102,7 +102,7 @@ describe('regex-only cloud flow (no NER model required)', () => {
 
     // 1. Cloud was called with anonymized payload — no raw PII visible
     expect(cloudCalls.length).toBe(1);
-    const outgoing = cloudCalls[0];
+    const outgoing = cloudCalls[0]!;
     const userMsg = outgoing.find((m) => m.role === 'user')!;
     expect(userMsg.content).not.toContain('alice@acme.com');
     expect(userMsg.content).not.toContain('+48 600 700 800');
@@ -143,7 +143,7 @@ describe('regex-only cloud flow (no NER model required)', () => {
     });
 
     // Cloud never saw the real names
-    const sent = (mockCloud as jest.Mock).mock.calls[0][0] as ChatMessage[];
+    const sent = (mockCloud as jest.Mock).mock.calls[0]![0] as ChatMessage[];
     const userSent = sent.find((m) => m.role === 'user')!;
     expect(userSent.content).not.toContain('John Doe');
     expect(userSent.content).not.toContain('Kasia Nowak');
@@ -163,7 +163,7 @@ describe('regex-only cloud flow (no NER model required)', () => {
     // Run anonymize normally first
     const { anonMessages } = await anonymizeMessages(messages, {});
     // Sanity: our regex DOES catch this email
-    expect(anonMessages[0].content).not.toContain('alice@example.com');
+    expect(anonMessages[0]!.content).not.toContain('alice@example.com');
 
     // Now manually inject a leak (simulating pipeline bug) and verify
     // the safety re-scan catches it
@@ -173,9 +173,9 @@ describe('regex-only cloud flow (no NER model required)', () => {
         content: 'Real leak: leaked@example.com slipped through',
       },
     ];
-    const leaks = regexScan(leakyMessages[0].content);
+    const leaks = regexScan(leakyMessages[0]!.content);
     expect(leaks.length).toBeGreaterThan(0);
-    expect(leaks[0].type).toBe('EMAIL');
+    expect(leaks[0]!.type).toBe('EMAIL');
   });
 
   it('handles all 18 regex categories end-to-end round-trip', async () => {
@@ -208,7 +208,7 @@ describe('regex-only cloud flow (no NER model required)', () => {
 
     const mockCloud = jest.fn(async (msgs: ChatMessage[]) => {
       // Cloud echoes back first message with all placeholders
-      return msgs[0].content;
+      return msgs[0]!.content;
     });
 
     const result = await runRegexOnlyCloudFlow({
@@ -217,7 +217,7 @@ describe('regex-only cloud flow (no NER model required)', () => {
     });
 
     // What cloud received should have NO raw PII of any kind
-    const sent = mockCloud.mock.calls[0][0][0].content;
+    const sent = mockCloud.mock.calls[0]![0]![0]!.content;
     expect(regexScan(sent)).toEqual([]);
 
     // Every original value must be restored in the final result
@@ -258,7 +258,7 @@ describe('regex-only cloud flow (no NER model required)', () => {
 
     await runRegexOnlyCloudFlow({ messages, mockCloud });
 
-    const sent = (mockCloud as jest.Mock).mock.calls[0][0] as ChatMessage[];
+    const sent = (mockCloud as jest.Mock).mock.calls[0]![0] as ChatMessage[];
     const userSent = sent.find((m) => m.role === 'user')!;
 
     // CRITICAL: prose names LEAK in regex-only mode. This is the accepted
@@ -311,8 +311,8 @@ describe('regex-only cloud flow (no NER model required)', () => {
     await runRegexOnlyCloudFlow({ messages, mockCloud });
 
     const sentMessages = (mockCloud as jest.Mock).mock
-      .calls[0][0] as ChatMessage[];
-    const sent = sentMessages[0].content;
+      .calls[0]![0] as ChatMessage[];
+    const sent = sentMessages[0]!.content;
     // User's own text preserved
     expect(sent).toContain('Thanks, will review');
     // Quote history gone (strip + anonymization cover it)

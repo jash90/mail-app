@@ -16,7 +16,8 @@
     "tests/**/*.ts",
     "tests/**/*.tsx",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+    "expo-env.d.ts",
+    "onnxruntime-react-native.d.ts"
   ],
   "exclude": [
     "landing",

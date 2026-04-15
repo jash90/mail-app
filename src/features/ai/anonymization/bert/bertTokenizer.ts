@@ -212,7 +212,7 @@ function preTokenize(text: string): Word[] {
       continue;
     }
     if (isPunctuation(code)) {
-      words.push({ text: text[i], start: i, end: i + 1 });
+      words.push({ text: text[i]!, start: i, end: i + 1 });
       i++;
       continue;
     }
@@ -272,9 +272,9 @@ function bpeEncodeWord(
   // Initial tokens: one per UTF-16 code unit. Last token gets </w> suffix.
   const tokens: BpeToken[] = [];
   for (let i = 0; i < word.length; i++) {
-    tokens.push({ text: word[i], relStart: i, relEnd: i + 1 });
+    tokens.push({ text: word[i]!, relStart: i, relEnd: i + 1 });
   }
-  const lastToken = tokens[tokens.length - 1];
+  const lastToken = tokens[tokens.length - 1]!;
   lastToken.text = lastToken.text + endOfWord;
 
   // Iteratively merge the lowest-rank adjacent pair until no merge applies.
@@ -285,7 +285,7 @@ function bpeEncodeWord(
     let bestIdx = -1;
     let bestRank = Number.POSITIVE_INFINITY;
     for (let i = 0; i < tokens.length - 1; i++) {
-      const pairKey = `${tokens[i].text} ${tokens[i + 1].text}`;
+      const pairKey = `${tokens[i]!.text} ${tokens[i + 1]!.text}`;
       const rank = merges.get(pairKey);
       if (rank !== undefined && rank < bestRank) {
         bestRank = rank;
@@ -294,8 +294,8 @@ function bpeEncodeWord(
     }
     if (bestIdx === -1) break;
 
-    const left = tokens[bestIdx];
-    const right = tokens[bestIdx + 1];
+    const left = tokens[bestIdx]!;
+    const right = tokens[bestIdx + 1]!;
     const merged: BpeToken = {
       text: left.text + right.text,
       relStart: left.relStart,

@@ -74,7 +74,7 @@ function makeLogits(labelPerToken: readonly number[]): OnnxTensorLike {
   const seqLen = labelPerToken.length;
   const data = new Float32Array(seqLen * NUM_LABELS);
   for (let t = 0; t < seqLen; t++) {
-    data[t * NUM_LABELS + labelPerToken[t]] = 10;
+    data[t * NUM_LABELS + labelPerToken[t]!] = 10;
   }
   return { data, dims: [1, seqLen, NUM_LABELS] };
 }
@@ -161,9 +161,9 @@ describe('runBertNer', () => {
       'input_ids',
       'token_type_ids',
     ]);
-    expect(feeds!.input_ids.dims).toEqual([1, 4]);
-    expect(feeds!.attention_mask.dims).toEqual([1, 4]);
-    expect(feeds!.token_type_ids.dims).toEqual([1, 4]);
+    expect(feeds!.input_ids!.dims).toEqual([1, 4]);
+    expect(feeds!.attention_mask!.dims).toEqual([1, 4]);
+    expect(feeds!.token_type_ids!.dims).toEqual([1, 4]);
   });
 
   it('respects overridden input and output tensor names', async () => {
@@ -245,10 +245,10 @@ describe('runBertNer', () => {
     });
 
     const feeds = lastFeeds.value!;
-    expect(feeds.input_ids.dims).toEqual([1, 4]);
+    expect(feeds.input_ids!.dims).toEqual([1, 4]);
     // The last id must be SEP (id=1) after truncation.
-    const ids = feeds.input_ids.data as ArrayLike<number | bigint>;
-    const lastId = Number(ids[ids.length - 1] as number | bigint);
+    const ids = feeds.input_ids!.data as ArrayLike<number | bigint>;
+    const lastId = Number(ids[ids.length - 1]! as number | bigint);
     expect(lastId).toBe(1);
   });
 
@@ -282,7 +282,7 @@ describe('runBertNer', () => {
     const winners: readonly number[] = [0, 1, 2, 0];
     for (let t = 0; t < seqLen; t++) {
       for (let c = 0; c < NUM_LABELS; c++) {
-        data.push(c === winners[t] ? 10n : 0n);
+        data.push(c === winners[t]! ? 10n : 0n);
       }
     }
     const logits: OnnxTensorLike = { data, dims: [1, seqLen, NUM_LABELS] };

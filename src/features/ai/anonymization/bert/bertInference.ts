@@ -199,7 +199,7 @@ function truncate(
   const ids = encoded.ids.slice(0, maxSeqLen - 1);
   const offsets = encoded.offsets.slice(0, maxSeqLen - 1);
   ids.push(sepTokenId);
-  const lastEnd = offsets.length > 0 ? offsets[offsets.length - 1].end : 0;
+  const lastEnd = offsets.length > 0 ? offsets[offsets.length - 1]!.end : 0;
   offsets.push({ start: lastEnd, end: lastEnd });
   return { ids, offsets };
 }
@@ -234,8 +234,8 @@ function argmaxLogitsToTags(
       `runBertNer: unexpected logits shape ${JSON.stringify(logits.dims)}; expected [1, seqLen, numLabels]`,
     );
   }
-  const seqLen = logits.dims[1];
-  const numLabels = logits.dims[2];
+  const seqLen = logits.dims[1]!;
+  const numLabels = logits.dims[2]!;
   const data = logits.data;
   if (data.length !== seqLen * numLabels) {
     throw new Error(
@@ -246,9 +246,9 @@ function argmaxLogitsToTags(
   const tags: BioTag[] = new Array(seqLen);
   for (let t = 0; t < seqLen; t++) {
     let bestIdx = 0;
-    let bestVal = toNumber(data[t * numLabels]);
+    let bestVal = toNumber(data[t * numLabels]!);
     for (let c = 1; c < numLabels; c++) {
-      const v = toNumber(data[t * numLabels + c]);
+      const v = toNumber(data[t * numLabels + c]!);
       if (v > bestVal) {
         bestVal = v;
         bestIdx = c;
