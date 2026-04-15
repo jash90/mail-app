@@ -94,7 +94,6 @@ export default function FolderPickerModal({
               data={sortedLabels}
               keyExtractor={(item) => item.id}
               renderItem={renderItem}
-              estimatedItemSize={48}
               contentContainerStyle={{ paddingHorizontal: 8 }}
               ListFooterComponent={<SafeAreaView edges={['bottom']} />}
             />
