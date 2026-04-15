@@ -63,7 +63,7 @@ export default function StatsScreen() {
     <StyledSafeAreaView className="flex-1 bg-black" edges={['top']}>
       <ScrollView
         className="flex-1"
-        contentContainerClassName="px-4 pb-8"
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}

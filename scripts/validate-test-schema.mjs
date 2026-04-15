@@ -12,8 +12,8 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const testDbPath = path.join(__dirname, '..', 'tests', 'db', 'testDb.ts');
-const schemaPath = path.join(__dirname, '..', 'db', 'schema.ts');
+const testDbPath = path.join(__dirname, '..', 'tests', 'src', 'shared', 'db', 'testDb.ts');
+const schemaPath = path.join(__dirname, '..', 'src', 'shared', 'db', 'schema.ts');
 
 const testDbContent = fs.readFileSync(testDbPath, 'utf-8');
 const schemaContent = fs.readFileSync(schemaPath, 'utf-8');
