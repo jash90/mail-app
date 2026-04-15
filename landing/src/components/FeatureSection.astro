@@ -1,0 +1,48 @@
+---
+interface Props {
+  title: string;
+  description: string;
+  image: string;
+  imageAlt: string;
+  reverse?: boolean;
+  badge?: string;
+}
+
+const { title, description, image, imageAlt, reverse = false, badge } = Astro.props;
+---
+
+<section class="px-6 py-20 lg:py-28">
+  <div
+    class:list={[
+      "mx-auto flex max-w-6xl flex-col items-center gap-12 lg:gap-16",
+      reverse ? "lg:flex-row-reverse" : "lg:flex-row",
+    ]}
+  >
+    <div class="flex-1 text-center lg:text-left">
+      {badge && (
+        <span class="mb-4 inline-block rounded-full border border-accent-1/30 bg-accent-1/10 px-3 py-1 text-xs font-medium text-accent-1">
+          {badge}
+        </span>
+      )}
+      <h2 class="text-3xl font-bold tracking-tight text-text-primary sm:text-4xl">
+        {title}
+      </h2>
+      <p class="mt-4 max-w-lg text-lg leading-relaxed text-text-secondary">
+        {description}
+      </p>
+      <slot />
+    </div>
+
+    <div class="flex-shrink-0">
+      <div class="phone-frame">
+        <img
+          src={image}
+          alt={imageAlt}
+          width="272"
+          height="590"
+          loading="lazy"
+        />
+      </div>
+    </div>
+  </div>
+</section>

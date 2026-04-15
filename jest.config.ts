@@ -15,6 +15,7 @@ const config: Config = {
   modulePathIgnorePatterns: ['<rootDir>/node_modules/better-sqlite3/'],
   testPathIgnorePatterns: ['/node_modules/'],
   forceExit: true,
+  detectOpenHandles: true,
   collectCoverageFrom: [
     'features/**/*.ts',
     'db/**/*.ts',

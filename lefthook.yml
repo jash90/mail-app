@@ -12,5 +12,7 @@ pre-push:
   commands:
     typecheck:
       run: bun run typecheck
+    schema-drift:
+      run: node scripts/validate-test-schema.mjs
     test:
-      run: bun run test
+      run: bun run test -- --onlyChanged

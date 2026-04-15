@@ -1,0 +1,61 @@
+---
+const showOnDeviceAI = import.meta.env.SHOW_ON_DEVICE_AI === "true";
+---
+
+<section id="download" class="px-6 py-20 lg:py-28">
+  <div class="mx-auto max-w-6xl text-center">
+    <h2 class="text-3xl font-bold tracking-tight text-text-primary sm:text-4xl">
+      Ready to take control of your inbox?
+    </h2>
+    <p class="mx-auto mt-4 max-w-xl text-lg text-text-secondary">
+      {showOnDeviceAI
+        ? "AI-powered email management that respects your privacy. On-device intelligence, zero cloud dependency."
+        : "AI-powered email management that respects your privacy. Smart intelligence, built for speed."}
+    </p>
+    <div class="mt-8">
+      <a
+        href="#"
+        class="inline-flex items-center rounded-full bg-gradient-to-r from-accent-1 to-accent-2 px-8 py-3.5 text-base font-semibold text-white shadow-lg shadow-accent-1/25 transition-all hover:shadow-accent-1/40 hover:brightness-110"
+      >
+        Download Mail App
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer class="border-t border-border-subtle px-6 py-8">
+  <div
+    class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row"
+  >
+    <div class="flex items-center gap-2 text-sm text-text-secondary">
+      <svg
+        class="h-5 w-5 text-accent-1"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+      </svg>
+      <span>&copy; {new Date().getFullYear()} Mail App</span>
+    </div>
+
+    <div class="flex items-center gap-6">
+      <a
+        href="#"
+        class="text-sm text-text-secondary transition-colors hover:text-text-primary"
+      >
+        GitHub
+      </a>
+      <a
+        href="#"
+        class="text-sm text-text-secondary transition-colors hover:text-text-primary"
+      >
+        Privacy
+      </a>
+    </div>
+  </div>
+</footer>

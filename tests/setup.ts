@@ -27,7 +27,7 @@ jest.mock('react-native-reanimated', () => ({
   withRepeat: jest.fn(),
 }));
 
-jest.mock('@/lib/sentry', () => ({
+jest.mock('@/src/shared/services/sentry', () => ({
   Sentry: {
     captureException: jest.fn(),
     captureMessage: jest.fn(),
@@ -38,4 +38,11 @@ jest.mock('@/lib/sentry', () => ({
   },
   initSentry: jest.fn(),
   navigationIntegration: { registerNavigationContainer: jest.fn() },
+}));
+
+jest.mock('@/src/shared/services/resourceLock', () => ({
+  acquireAI: jest.fn(() => Promise.resolve(jest.fn())),
+  acquireNetwork: jest.fn(() => Promise.resolve(jest.fn())),
+  registerLocalAICheck: jest.fn(),
+  isAIActive: jest.fn(() => false),
 }));

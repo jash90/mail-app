@@ -1,0 +1,53 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Nav from "../components/Nav.astro";
+import Hero from "../components/Hero.astro";
+import FeatureSection from "../components/FeatureSection.astro";
+import TechGrid from "../components/TechGrid.astro";
+import Footer from "../components/Footer.astro";
+
+const showOnDeviceAI = import.meta.env.SHOW_ON_DEVICE_AI === "true";
+
+const aiDescription = showOnDeviceAI
+  ? "Get instant summaries of every email thread. Choose between cloud AI for speed or on-device LLMs for total privacy — Llama 3.2, Bielik, and Qwen 3 run directly on your phone with Metal GPU acceleration."
+  : "Get instant summaries of every email thread. Cloud AI distills long conversations into concise takeaways so you can triage faster and focus on what matters.";
+---
+
+<Layout>
+  <Nav />
+
+  <main>
+    <Hero />
+
+    <div id="features">
+      <FeatureSection
+        title="AI that reads so you don't have to."
+        description={aiDescription}
+        image="/screenshots/ai-summary.png"
+        imageAlt="AI Summary screen showing automated email summarization"
+        badge="AI Summaries"
+      />
+
+      <FeatureSection
+        title="Know your email habits."
+        description="See your sent-to-received ratio, top senders, thread counts, newsletter volume, and more. Detailed analytics that help you understand and manage your communication patterns."
+        image="/screenshots/statistics.png"
+        imageAlt="Statistics dashboard showing email analytics with charts"
+        reverse
+        badge="Analytics"
+      />
+
+      <FeatureSection
+        title="Find anything, instantly."
+        description="Hybrid search that combines local full-text indexing (SQLite FTS5) with Gmail API search, then reranks results with BM25 for the most relevant matches. Works offline with your cached inbox."
+        image="/screenshots/search.png"
+        imageAlt="Search screen with filters and results from Gmail"
+        badge="Smart Search"
+      />
+    </div>
+
+    <TechGrid />
+  </main>
+
+  <Footer />
+</Layout>

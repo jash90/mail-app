@@ -1,12 +1,11 @@
 # AGENTS.md — Testing
 
 <!-- Scope: Rules for tests/ — Jest test suite, mocking, DB test setup.
-     Source: CLAUDE.md testing section. -->
+     Convention: Dev.to Feature-Based → tests mirror the features/ + shared/ structure. -->
 
 ## Test Organization
 
-- Tests live in `tests/` mirroring the source tree (e.g. `tests/features/gmail/helpers/batch.test.ts`).
-- Never place test files alongside source files. All tests go in `tests/`.
+Tests live in `tests/` mirroring the source tree (e.g. `tests/features/gmail/helpers/batch.test.ts`). Never place test files alongside source files.
 
 ## Running Tests
 
@@ -18,7 +17,7 @@ bun run test:watch                                  # Watch mode
 
 ## Test Runner
 
-- Jest with `jest-expo/ios` preset.
+Jest with `jest-expo/ios` preset.
 
 ## Database Tests
 
@@ -27,9 +26,5 @@ bun run test:watch                                  # Watch mode
 
 ## Mocking
 
-- Native modules are mocked in `tests/setup.ts`: `expo-secure-store`, `expo-sqlite`, `react-native-reanimated`, Sentry.
+- Native modules mocked in `tests/setup.ts`: `expo-secure-store`, `expo-sqlite`, `react-native-reanimated`, Sentry.
 - When adding new native module dependencies, add corresponding mocks to `tests/setup.ts`.
-
-## Coverage
-
-- Coverage reports go in `coverage/` (gitignored).

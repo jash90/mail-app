@@ -1,0 +1,11 @@
+export { TTSService } from './services/TTSService';
+export { useEmailTTSQueue } from './hooks/useEmailTTSQueue';
+export { useTTSTracks, type TTSTracksDeps } from './hooks/useTTSTracks';
+export { useTTSPlayer } from './hooks/useTTSPlayer';
+export { TTSPlayerBar } from './components/TTSPlayerBar';
+export { detectLang } from './services/detectLang';
+export { TTS_MODELS, DEFAULT_LANG, POLISH_VOICES } from './services/models';
+export { PolishVoiceSelector } from './components/PolishVoiceSelector';
+export { usePolishVoices } from './hooks/usePolishVoices';
+export type { TTSTrack, TTSQueueState } from './types';
+export type { TTSModel, PolishVoice } from './services/models';

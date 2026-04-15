@@ -1,0 +1,80 @@
+import { useCallback } from 'react';
+import { ActivityIndicator, Text, View } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
+import EmailComponent from '@/src/features/gmail/components/EmailComponent';
+import { threadToEmailProps } from '@/src/shared/services/threadTransform';
+import type { SearchResult } from '@/src/features/search';
+
+interface SearchResultsProps {
+  results: SearchResult[];
+  hasQuery: boolean;
+  isLoading: boolean;
+  useGmailApi: boolean;
+  importanceMap?: Map<string, number>;
+  onThreadPress: (id: string) => void;
+}
+
+export default function SearchResults({
+  results,
+  hasQuery,
+  isLoading,
+  useGmailApi,
+  importanceMap,
+  onThreadPress,
+}: SearchResultsProps) {
+  const renderItem = useCallback(
+    ({ item }: { item: SearchResult }) => (
+      <EmailComponent
+        id={item.thread.id}
+        item={threadToEmailProps(item.thread, importanceMap)}
+        onPress={onThreadPress}
+      />
+    ),
+    [importanceMap, onThreadPress],
+  );
+
+  if (isLoading) {
+    return (
+      <View className="items-center py-8">
+        <ActivityIndicator color="white" />
+        <Text className="mt-2 text-xs text-gray-500">
+          {useGmailApi ? 'Searching Gmail...' : 'AI analyzing results...'}
+        </Text>
+      </View>
+    );
+  }
+
+  if (hasQuery && results.length === 0) {
+    return (
+      <View className="items-center py-8">
+        <Text className="text-gray-500">No results</Text>
+      </View>
+    );
+  }
+
+  if (hasQuery) {
+    return (
+      <View className="flex-1">
+        <FlashList
+          data={results}
+          keyExtractor={(item: SearchResult) => item.thread.id}
+          renderItem={renderItem}
+          keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={
+            <Text className="mb-2 text-xs text-gray-500">
+              {results.length} {results.length === 1 ? 'result' : 'results'}
+              {!useGmailApi ? ' • AI ✨' : ''}
+              {useGmailApi ? ' • ☁️ Gmail' : ''}
+            </Text>
+          }
+        />
+      </View>
+    );
+  }
+
+  return (
+    <View className="items-center py-8">
+      <Text className="text-sm text-gray-600">Type to search</Text>
+    </View>
+  );
+}
