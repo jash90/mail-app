@@ -13,7 +13,7 @@
     "format:check": "prettier --check \"app/**/*.{ts,tsx}\" \"shared/**/*.{ts,tsx}\" \"features/**/*.{ts,tsx}\"",
     "test": "jest",
     "test:watch": "jest --watch",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node node_modules/@typescript/native/bin/tsc --noEmit",
     "check": "bun run lint && bun run typecheck",
     "postinstall": "node scripts/download-sherpa-xcframeworks.js"
   },
@@ -72,6 +72,7 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/jest": "^30.0.0",
     "@types/react": "~19.1.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "babel-plugin-inline-import": "^3.0.0",
     "better-sqlite3": "^12.8.0",
     "drizzle-kit": "^0.31.9",
@@ -83,7 +84,7 @@
     "jest-expo": "^55.0.13",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
-    "typescript": "~5.9.2"
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "private": true
 }
